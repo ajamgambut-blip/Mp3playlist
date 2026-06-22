@@ -1,4 +1,4 @@
-const CACHE_NAME = 'musik-offline-v1';
+const CACHE_NAME = 'music-player-v2';
 const FILES_TO_CACHE = [
   '/',
   '/index.html',
