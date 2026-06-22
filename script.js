@@ -1,14 +1,7 @@
-console.log("Musik Offline Loaded");
+console.log("Musik Offline V2 Loaded");
 // ======================
 // ELEMENTS
 // ======================
-const canvas = document.getElementById("visualizer");
-const ctx = canvas.getContext("2d");
-let db;
-let audioContext;
-let analyser;
-let source;
-let dataArray;
 const audio = document.getElementById("audioPlayer");
 const addSongBtn = document.getElementById("addSongBtn");
 const fileInput = document.getElementById("fileInput");
@@ -20,11 +13,62 @@ const playlistEl = document.getElementById("playlist");
 const songTitle = document.getElementById("songTitle");
 const songArtist = document.getElementById("songArtist");
 const coverArt = document.getElementById("coverArt");
+const canvas = document.getElementById("visualizer");
+const ctx = canvas.getContext("2d");
 // ======================
 // DATA
 // ======================
 let playlist = [];
 let currentIndex = -1;
+// ======================
+// VISUALIZER
+// ======================
+let audioContext;
+let analyser;
+let source;
+let dataArray;
+function initVisualizer() {
+  if (audioContext) return;
+  audioContext =
+    new (window.AudioContext || window.webkitAudioContext)();
+  analyser = audioContext.createAnalyser();
+  source =
+    audioContext.createMediaElementSource(audio);
+  source.connect(analyser);
+  analyser.connect(audioContext.destination);
+  analyser.fftSize = 256;
+  dataArray =
+    new Uint8Array(analyser.frequencyBinCount);
+  drawVisualizer();
+}
+function drawVisualizer() {
+  requestAnimationFrame(drawVisualizer);
+  if (!analyser) return;
+  analyser.getByteFrequencyData(dataArray);
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+  ctx.clearRect(
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+  const barWidth =
+    canvas.width / dataArray.length;
+  let x = 0;
+  for (let i = 0; i < dataArray.length; i++) {
+    const height =
+      (dataArray[i] / 255) * canvas.height;
+    ctx.fillStyle = "#1DB954";
+    ctx.fillRect(
+      x,
+      canvas.height - height,
+      barWidth - 1,
+      height
+    );
+    x += barWidth;
+  }
+}
 // ======================
 // ADD SONG
 // ======================
@@ -32,19 +76,14 @@ addSongBtn.addEventListener("click", () => {
   fileInput.click();
 });
 fileInput.addEventListener("change", (event) => {
-  const files = Array.from(event.target.files);
+  const files =
+    Array.from(event.target.files);
   files.forEach(file => {
-    const track = {
-  title: file.name,
-  artist: "Local Music",
-  url: URL.createObjectURL(file)
-};
-
-playlist.push(track);
-
-if (db) {
-  saveSong(track);
-}
+    playlist.push({
+      title: file.name.replace(/\.[^/.]+$/, ""),
+      artist: "Local Music",
+      url: URL.createObjectURL(file)
+    });
   });
   updatePlaylist();
   if (playlist.length > 0 && currentIndex === -1) {
@@ -57,7 +96,8 @@ if (db) {
 function updatePlaylist() {
   playlistEl.innerHTML = "";
   playlist.forEach((track, index) => {
-    const li = document.createElement("li");
+    const li =
+      document.createElement("li");
     li.textContent = track.title;
     if (index === currentIndex) {
       li.classList.add("active");
@@ -78,49 +118,27 @@ function playTrack(index) {
   audio.src = track.url;
   songTitle.textContent = track.title;
   songArtist.textContent = track.artist;
-  // cover sementara
   coverArt.src = "icon-512.png";
+  if (!audioContext) {
+    initVisualizer();
+  }
+  if ("mediaSession" in navigator) {
+    navigator.mediaSession.metadata =
+      new MediaMetadata({
+        title: track.title,
+        artist: track.artist,
+        artwork: [
+          {
+            src: "icon-512.png",
+            sizes: "512x512",
+            type: "image/png"
+          }
+        ]
+      });
+  }
   audio.play();
   updatePlaylist();
 }
-if (!audioContext) {
-  initVisualizer();
-}
-if ("mediaSession" in navigator) {
-
-  navigator.mediaSession.metadata =
-    new MediaMetadata({
-      title: track.title,
-      artist: track.artist,
-      artwork: [
-        {
-          src: "icon-512.png",
-          sizes: "512x512",
-          type: "image/png"
-        }
-      ]
-    });
-
-}
-navigator.mediaSession.setActionHandler(
-  "nexttrack",
-  () => nextBtn.click()
-);
-
-navigator.mediaSession.setActionHandler(
-  "previoustrack",
-  () => prevBtn.click()
-);
-
-navigator.mediaSession.setActionHandler(
-  "play",
-  () => audio.play()
-);
-
-navigator.mediaSession.setActionHandler(
-  "pause",
-  () => audio.pause()
-);
 // ======================
 // PLAY / PAUSE
 // ======================
@@ -180,6 +198,27 @@ progressBar.addEventListener("input", () => {
     (progressBar.value / 100) * audio.duration;
 });
 // ======================
+// MEDIA SESSION
+// ======================
+if ("mediaSession" in navigator) {
+  navigator.mediaSession.setActionHandler(
+    "nexttrack",
+    () => nextBtn.click()
+  );
+  navigator.mediaSession.setActionHandler(
+    "previoustrack",
+    () => prevBtn.click()
+  );
+  navigator.mediaSession.setActionHandler(
+    "play",
+    () => audio.play()
+  );
+  navigator.mediaSession.setActionHandler(
+    "pause",
+    () => audio.pause()
+  );
+}
+// ======================
 // KEYBOARD
 // ======================
 document.addEventListener("keydown", (e) => {
@@ -194,118 +233,3 @@ document.addEventListener("keydown", (e) => {
     prevBtn.click();
   }
 });
-function initVisualizer() {
-
-  if (audioContext) return;
-
-  audioContext = new AudioContext();
-
-  analyser = audioContext.createAnalyser();
-
-  source = audioContext.createMediaElementSource(audio);
-
-  source.connect(analyser);
-  analyser.connect(audioContext.destination);
-
-  analyser.fftSize = 256;
-
-  const bufferLength = analyser.frequencyBinCount;
-
-  dataArray = new Uint8Array(bufferLength);
-
-  drawVisualizer();
-}
-function drawVisualizer() {
-
-  requestAnimationFrame(drawVisualizer);
-
-  analyser.getByteFrequencyData(dataArray);
-
-  canvas.width = canvas.offsetWidth;
-  canvas.height = canvas.offsetHeight;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const barWidth = canvas.width / dataArray.length;
-
-  let x = 0;
-
-  for (let i = 0; i < dataArray.length; i++) {
-
-    const height =
-      (dataArray[i] / 255) * canvas.height;
-
-    ctx.fillStyle = "#1DB954";
-
-    ctx.fillRect(
-      x,
-      canvas.height - height,
-      barWidth - 1,
-      height
-    );
-
-    x += barWidth;
-  }
-}
-function initDB() {
-
-  const request =
-    indexedDB.open("MusicPlayerDB", 1);
-
-  request.onupgradeneeded = (event) => {
-
-    db = event.target.result;
-
-    if (!db.objectStoreNames.contains("songs")) {
-
-      db.createObjectStore(
-        "songs",
-        { keyPath: "id", autoIncrement: true }
-      );
-
-    }
-
-  };
-
-  request.onsuccess = (event) => {
-
-    db = event.target.result;
-
-    loadSongs();
-
-  };
-
-}
-function saveSong(song) {
-
-  const tx =
-    db.transaction("songs", "readwrite");
-
-  const store =
-    tx.objectStore("songs");
-
-  store.add(song);
-
-}
-function loadSongs() {
-
-  const tx =
-    db.transaction("songs", "readonly");
-
-  const store =
-    tx.objectStore("songs");
-
-  const request = store.getAll();
-
-  request.onsuccess = () => {
-
-    playlist = request.result;
-
-    updatePlaylist();
-
-  };
-
-}
-initDB();
-fileInput.addEventListener("change", (event) => {
-
