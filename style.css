@@ -123,5 +123,16 @@ body {
 
     calc(env(safe-area-inset-bottom) + 20px)
 
-    20px;
+    20px; in
+}
+
+#coverArt {
+  width: 280px;
+  height: 280px;
+  border-radius: 20px;
+
+  box-shadow:
+    0 0 40px rgba(29,185,84,.35);
+
+  transition: .3s;
 }
