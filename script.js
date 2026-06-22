@@ -233,3 +233,10 @@ document.addEventListener("keydown", (e) => {
     prevBtn.click();
   }
 });
+fileInput.addEventListener("change", (event) => {
+
+  alert("File berhasil dipilih!");
+
+  console.log(event.target.files);
+
+});
