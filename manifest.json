@@ -7,6 +7,6 @@
   "background_color": "#121212",
   "theme_color": "#1DB954",
   "orientation": "portrait",
-  "icons": [
+  "icons": [ 
     {
-      "src": "https://via.placeholder.com/192/121212/1DB954?text
+      "src": icon-512.png
