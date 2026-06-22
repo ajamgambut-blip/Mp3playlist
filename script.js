@@ -1,14 +1,3 @@
-<<<<<<< HEAD
-// Array buat nyimpen lagu
-let playlist = [];
-let currentIndex = 0;
-const audio = document.getElementById('audio');
-const addSongBtn = document.getElementById('addSongBtn');
-const fileInput = document.getElementById('fileInput');
-const playBtn = document.getElementById('playBtn');
-const songTitle = document.getElementById('songTitle');
-const playlistEl = document.getElementById('playlist');
-=======
 // ======================
 // ELEMENTS
 // ======================
