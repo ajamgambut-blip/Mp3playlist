@@ -103,3 +103,25 @@ button:hover {
   border-radius: 50%;
   font-size: 22px;
 }
+body {
+  background: #121212;
+  color: white;
+  font-family: Arial, sans-serif;
+
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.container {
+  max-width: 600px;
+  margin: auto;
+  padding:
+
+    calc(env(safe-area-inset-top) + 20px)
+
+    20px
+
+    calc(env(safe-area-inset-bottom) + 20px)
+
+    20px;
+}
