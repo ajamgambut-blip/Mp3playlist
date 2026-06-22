@@ -1,0 +1,12 @@
+{
+  "name": "Musik Offline Ku",
+  "short_name": "MusikKu",
+  "description": "Pemutar musik pribadi yang bisa offline",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#1DB954",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192/121212/1DB954?text
