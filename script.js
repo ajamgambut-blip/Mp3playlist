@@ -307,4 +307,5 @@ function loadSongs() {
 
 }
 initDB();
+fileInput.addEventListener("change", (event) => {
 
