@@ -2,46 +2,89 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Musik Offline Ku</title>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  >
+  <title>Musik Offline</title>
+  <!-- PWA -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#121212">
+  <!-- iPhone Home Screen Icon -->
+  <link rel="apple-touch-icon" href="icon-512.png">
+  <!-- iOS PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Musik Offline">
+  <!-- CSS -->
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="container">
+    <!-- HEADER -->
     <header>
       <h1>🎵 Musik Offline</h1>
-      <button id="addSongBtn">+ Add Song</button>
-      <input type="file" id="fileInput" accept="audio/mp3,audio/mpeg" multiple hidden>
+      <button id="addSongBtn">
+        + Add Song
+      </button>
+      <input
+        type="file"
+        id="fileInput"
+        accept="audio/*"
+        multiple
+        style="display:none"
+      >
     </header>
-
+    <!-- NOW PLAYING -->
     <main>
       <div class="now-playing">
-        <img id="coverArt" src="https://via.placeholder.com/300" alt="Cover">
-        <h2 id="songTitle">Pilih lagu dulu</h2>
-        <p id="songArtist">-</p>
+        <img
+          id="coverArt"
+          src="icon-512.png"
+          alt="Cover Album"
+        >
+        <canvas id="visualizer"></canvas>
+        <h2 id="songTitle">
+          Pilih lagu dulu
+        </h2>
+        <p id="songArtist">
+          -
+        </p>
       </div>
-
+      <!-- PLAYLIST -->
       <ul id="playlist"></ul>
     </main>
-
+    <!-- PLAYER -->
     <footer class="player-controls">
       <audio id="audioPlayer"></audio>
-      <input type="range" id="progressBar" value="0" max="100">
+      <input
+        type="range"
+        id="progressBar"
+        value="0"
+        min="0"
+        max="100"
+      >
       <div class="buttons">
-        <button id="prevBtn">⏮️</button>
-        <button id="playBtn">▶️</button>
-        <button id="nextBtn">⏭️</button>
+        <button id="prevBtn">
+          ⏮️
+        </button>
+        <button id="playBtn">
+          ▶️
+        </button>
+        <button id="nextBtn">
+          ⏭️
+        </button>
       </div>
     </footer>
   </div>
-
+  <!-- APP -->
   <script src="script.js"></script>
+  <!-- SERVICE WORKER -->
   <script>
-    // Daftar service worker biar bisa offline + install
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js');
+      navigator.serviceWorker.register('./sw.js')
+        .then(() => console.log('SW Registered'))
+        .catch(err => console.error(err));
     }
   </script>
 </body>
