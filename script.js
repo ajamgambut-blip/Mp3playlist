@@ -2,6 +2,13 @@ console.log("Musik Offline Loaded");
 // ======================
 // ELEMENTS
 // ======================
+const canvas = document.getElementById("visualizer");
+const ctx = canvas.getContext("2d");
+
+let audioContext;
+let analyser;
+let source;
+let dataArray;
 const audio = document.getElementById("audioPlayer");
 const addSongBtn = document.getElementById("addSongBtn");
 const fileInput = document.getElementById("fileInput");
@@ -70,6 +77,44 @@ function playTrack(index) {
   audio.play();
   updatePlaylist();
 }
+if (!audioContext) {
+  initVisualizer();
+}
+if ("mediaSession" in navigator) {
+
+  navigator.mediaSession.metadata =
+    new MediaMetadata({
+      title: track.title,
+      artist: track.artist,
+      artwork: [
+        {
+          src: "icon-512.png",
+          sizes: "512x512",
+          type: "image/png"
+        }
+      ]
+    });
+
+}
+navigator.mediaSession.setActionHandler(
+  "nexttrack",
+  () => nextBtn.click()
+);
+
+navigator.mediaSession.setActionHandler(
+  "previoustrack",
+  () => prevBtn.click()
+);
+
+navigator.mediaSession.setActionHandler(
+  "play",
+  () => audio.play()
+);
+
+navigator.mediaSession.setActionHandler(
+  "pause",
+  () => audio.pause()
+);
 // ======================
 // PLAY / PAUSE
 // ======================
@@ -143,3 +188,56 @@ document.addEventListener("keydown", (e) => {
     prevBtn.click();
   }
 });
+function initVisualizer() {
+
+  if (audioContext) return;
+
+  audioContext = new AudioContext();
+
+  analyser = audioContext.createAnalyser();
+
+  source = audioContext.createMediaElementSource(audio);
+
+  source.connect(analyser);
+  analyser.connect(audioContext.destination);
+
+  analyser.fftSize = 256;
+
+  const bufferLength = analyser.frequencyBinCount;
+
+  dataArray = new Uint8Array(bufferLength);
+
+  drawVisualizer();
+}
+function drawVisualizer() {
+
+  requestAnimationFrame(drawVisualizer);
+
+  analyser.getByteFrequencyData(dataArray);
+
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const barWidth = canvas.width / dataArray.length;
+
+  let x = 0;
+
+  for (let i = 0; i < dataArray.length; i++) {
+
+    const height =
+      (dataArray[i] / 255) * canvas.height;
+
+    ctx.fillStyle = "#1DB954";
+
+    ctx.fillRect(
+      x,
+      canvas.height - height,
+      barWidth - 1,
+      height
+    );
+
+    x += barWidth;
+  }
+}
