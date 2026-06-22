@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Musik Offline Ku</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#121212">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🎵 Musik Offline</h1>
+      <button id="addSongBtn">+ Add Song</button>
+      <input type="file" id="fileInput" accept="audio/mp3,audio/mpeg" multiple hidden>
+    </header>
+
+    <main>
+      <div class="now-playing">
+        <img id="coverArt" src="https://via.placeholder.com/300" alt="Cover">
+        <h2 id="songTitle">Pilih lagu dulu</h2>
+        <p id="songArtist">-</p>
+      </div>
+
+      <ul id="playlist"></ul>
+    </main>
+
+    <footer class="player-controls">
+      <audio id="audioPlayer"></audio>
+      <input type="range" id="progressBar" value="0" max="100">
+      <div class="buttons">
+        <button id="prevBtn">⏮️</button>
+        <button id="playBtn">▶️</button>
+        <button id="nextBtn">⏭️</button>
+      </div>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    // Daftar service worker biar bisa offline + install
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+  </script>
+</body>
+</html>
