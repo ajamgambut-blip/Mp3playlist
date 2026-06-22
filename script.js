@@ -4,7 +4,7 @@ console.log("Musik Offline Loaded");
 // ======================
 const canvas = document.getElementById("visualizer");
 const ctx = canvas.getContext("2d");
-
+let db;
 let audioContext;
 let analyser;
 let source;
@@ -34,11 +34,17 @@ addSongBtn.addEventListener("click", () => {
 fileInput.addEventListener("change", (event) => {
   const files = Array.from(event.target.files);
   files.forEach(file => {
-    playlist.push({
-      title: file.name.replace(/\.[^/.]+$/, ""),
-      artist: "Local Music",
-      url: URL.createObjectURL(file)
-    });
+    const track = {
+  title: file.name,
+  artist: "Local Music",
+  url: URL.createObjectURL(file)
+};
+
+playlist.push(track);
+
+if (db) {
+  saveSong(track);
+}
   });
   updatePlaylist();
   if (playlist.length > 0 && currentIndex === -1) {
@@ -241,3 +247,64 @@ function drawVisualizer() {
     x += barWidth;
   }
 }
+function initDB() {
+
+  const request =
+    indexedDB.open("MusicPlayerDB", 1);
+
+  request.onupgradeneeded = (event) => {
+
+    db = event.target.result;
+
+    if (!db.objectStoreNames.contains("songs")) {
+
+      db.createObjectStore(
+        "songs",
+        { keyPath: "id", autoIncrement: true }
+      );
+
+    }
+
+  };
+
+  request.onsuccess = (event) => {
+
+    db = event.target.result;
+
+    loadSongs();
+
+  };
+
+}
+function saveSong(song) {
+
+  const tx =
+    db.transaction("songs", "readwrite");
+
+  const store =
+    tx.objectStore("songs");
+
+  store.add(song);
+
+}
+function loadSongs() {
+
+  const tx =
+    db.transaction("songs", "readonly");
+
+  const store =
+    tx.objectStore("songs");
+
+  const request = store.getAll();
+
+  request.onsuccess = () => {
+
+    playlist = request.result;
+
+    updatePlaylist();
+
+  };
+
+}
+initDB();
+
