@@ -254,3 +254,12 @@ if ('mediaSession' in navigator) {
   navigator.mediaSession.setActionHandler('previoustrack', () => prevTrack());
   navigator.mediaSession.setActionHandler('nexttrack', () => nextTrack());
 }
+// Bikin AudioContext biar iOS nggak mute
+let audioCtx;
+audio.onplay = async () => {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+  // Wajib set volume > 0
+  audio.volume = 1.0;
+}
