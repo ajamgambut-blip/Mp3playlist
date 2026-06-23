@@ -20,3 +20,5 @@
     "type": "image/png"
   }
 ]
+ "display": "standalone",
+"categories": ["music", "audio"] 
