@@ -240,3 +240,17 @@ fileInput.addEventListener("change", (event) => {
   console.log(event.target.files);
 
 });
+// Biar ada tombol play/pause di lock screen & notifikasi
+if ('mediaSession' in navigator) {
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: track.title,
+    artist: 'Local Music',
+    artwork: [{src: 'icon-512.png', sizes: '512x512', type: 'image/png'}]
+  });
+
+  // Tombol di notifikasi
+  navigator.mediaSession.setActionHandler('play', () => audio.play());
+  navigator.mediaSession.setActionHandler('pause', () => audio.pause());
+  navigator.mediaSession.setActionHandler('previoustrack', () => prevTrack());
+  navigator.mediaSession.setActionHandler('nexttrack', () => nextTrack());
+}
