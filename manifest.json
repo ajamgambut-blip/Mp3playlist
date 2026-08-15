@@ -1,12 +1,10 @@
 {
-  "name": "MusikKu Offline",
+  "name": "MusikKu Pro",
   "short_name": "MusikKu",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#121212",
+  "background_color": "#0a0a0a",
   "theme_color": "#1DB954",
-  "icons": [
-    {"src": "./icon-512.png", "sizes": "512x512", "type": "image/png"}
-  ]
+  "icons": [{"src": "./icon-512.png", "sizes": "512x512", "type": "image/png"}]
 }
