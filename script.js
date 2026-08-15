@@ -82,3 +82,39 @@ function formatTime(s){let m=Math.floor(s/60),sec=Math.floor(s%60);return`${m}:$
 
 // JAGA SUARA IPHONE
 setInterval(()=>{if(!audio.paused)audio.volume=1},2000);
+
+// HAPUS LAGU
+function deleteSong(id){
+  if(!confirm("Yakin mau hapus lagu ini?")) return;
+  
+  // Hapus dari IndexedDB
+  db.transaction("songs","readwrite").objectStore("songs").delete(id);
+  
+  // Hapus dari array
+  songs = songs.filter(s => s.id !== id);
+  
+  // Kalau yg dihapus lagi play, pindah ke lagu berikutnya
+  if(i >= songs.length) i = 0;
+  if(songs.length) playSong(i);
+  else {
+    audio.pause();
+    titleEl.textContent = "MusikKu Pro";
+    artistEl.textContent = "Tambah lagu dulu ya";
+  }
+  
+  render();
+}
+
+// RENDER PLAYLIST + TOMBOL HAPUS
+function render(){
+  list.innerHTML="";
+  songs.forEach((s,idx)=>{
+    const li=document.createElement("li");
+    li.innerHTML=`
+      <span onclick="playSong(${idx})">${s.title}</span>
+      <button class="del-btn" onclick="deleteSong(${s.id})">🗑️</button>
+    `;
+    if(idx===i) li.classList.add("active");
+    list.appendChild(li);
+  })
+}
