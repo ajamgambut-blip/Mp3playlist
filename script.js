@@ -1,78 +1,84 @@
-// KHUSUS IPHONE FIX
 if('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js');
 
-let db;
-indexedDB.open("musikku",1).onupgradeneeded=e=>{db=e.target.result;db.createObjectStore("songs",{keyPath:"id",autoIncrement:true})};
-indexedDB.open("musikku",1).onsuccess=e=>{db=e.target.result;load()};
+let db; indexedDB.open("musikkuPro",1).onupgradeneeded=e=>{db=e.target.result;db.createObjectStore("songs",{keyPath:"id",autoIncrement:true})};
+indexedDB.open("musikkuPro",1).onsuccess=e=>{db=e.target.result;load()};
 
-const audio=document.getElementById("audio");
-const file=document.getElementById("file");
-const play=document.getElementById("play");
-const prev=document.getElementById("prev");
-const next=document.getElementById("next");
-const list=document.getElementById("list");
-const title=document.getElementById("title");
+const audio=document.getElementById("audio"), file=document.getElementById("file");
+const playBtn=document.getElementById("play"), prevBtn=document.getElementById("prev"), nextBtn=document.getElementById("next");
+const repeatBtn=document.getElementById("repeat"), progress=document.getElementById("progress");
+const list=document.getElementById("list"), titleEl=document.getElementById("title"), artistEl=document.getElementById("artist");
+const currentEl=document.getElementById("current"), durationEl=document.getElementById("duration");
 
-let songs=[]; let i=-1;
+let songs=[], i=0, isRepeat=false;
 
-// FIX 1: BIAR FILE PICKER KEBUKA DI IPHONE
-file.addEventListener('change', e=>{
-  if(!e.target.files.length) return;
-  [...e.target.files].forEach(f=>{
-    const r=new FileReader();
-    r.onload=()=>db.transaction("songs","readwrite").objectStore("songs").add({name:f.name,data:r.result});
-    r.readAsArrayBuffer(f);
-  });
-  setTimeout(load,1000);
-}, false);
+// PILIH FILE - FIX IPHONE
+file.onchange=async e=>{
+  for(let f of e.target.files){
+    const buf=await f.arrayBuffer();
+    db.transaction("songs","readwrite").objectStore("songs").add({name:f.name,data:buf});
+  }
+  setTimeout(load,800);
+}
 
+// LOAD
 function load(){
   db.transaction("songs").objectStore("songs").getAll().onsuccess=e=>{
     songs=e.target.result.map(s=>({id:s.id,title:s.name,url:URL.createObjectURL(new Blob([s.data]))}));
     render();
+    if(songs.length&&audio.paused) playSong(0);
   }
 }
 
+// RENDER PLAYLIST
 function render(){
   list.innerHTML="";
   songs.forEach((s,idx)=>{
     const li=document.createElement("li");
-    li.textContent=s.title;
+    li.innerHTML=`<span>${s.title}</span>`;
     if(idx===i)li.classList.add("active");
     li.onclick=()=>playSong(idx);
     list.appendChild(li);
   })
 }
 
-// FIX 2: IPHONE WAJIB RESUME AUDIOCONTEXT PAS DI TAP
+// PLAY
 function playSong(idx){
   i=idx; const s=songs[i];
-  audio.src=s.url;
-  title.textContent=s.title;
-  audio.load(); // penting buat iOS
-  audio.play().catch(()=>alert("Pencet Play lagi ya"));
-  updateMedia(s);
-  render();
+  audio.src=s.url; titleEl.textContent=s.title; artistEl.textContent="Local";
+  audio.load(); 
+  audio.play().catch(()=>{}); // iPhone butuh tap
+  updateMedia(s); render();
 }
 
+// MEDIA SESSION - BIAR JALAN SAAT LAYAR MATI
 function updateMedia(s){
   if('mediaSession' in navigator){
-    navigator.mediaSession.metadata=new MediaMetadata({title:s.title,artist:"Lokal"});
+    navigator.mediaSession.metadata=new MediaMetadata({title:s.title,artist:"Local",artwork:[{src:'./icon-512.png',sizes:'512x512'}]});
     navigator.mediaSession.setActionHandler('play',()=>audio.play());
     navigator.mediaSession.setActionHandler('pause',()=>audio.pause());
-    navigator.mediaSession.setActionHandler('nexttrack',()=>next.click());
-    navigator.mediaSession.setActionHandler('previoustrack',()=>prev.click());
+    navigator.mediaSession.setActionHandler('nexttrack',()=>nextBtn.click());
+    navigator.mediaSession.setActionHandler('previoustrack',()=>prevBtn.click());
   }
 }
 
-// FIX 3: TOMBOL PLAY HARUS DI TAP USER DULU
-play.onclick=()=>{
-  audio.paused?audio.play():audio.pause();
-}
+// KONTROL
+playBtn.onclick=()=>audio.paused?audio.play():audio.pause();
+audio.onplay=()=>playBtn.textContent="⏸️"; audio.onpause=()=>playBtn.textContent="▶️";
+nextBtn.onclick=()=>{i=(i+1)%songs.length;playSong(i)};
+prevBtn.onclick=()=>{i=(i-1+songs.length)%songs.length;playSong(i)};
+repeatBtn.onclick=()=>{isRepeat=!isRepeat;repeatBtn.style.color=isRepeat?"#1DB954":"#fff"};
+audio.onended=()=>isRepeat?audio.play():nextBtn.click();
 
-audio.onplay=()=>play.textContent="⏸️";
-audio.onpause=()=>play.textContent="▶️";
-next.onclick=()=>{i=(i+1)%songs.length;playSong(i)};
-prev.onclick=()=>{i=(i-1+songs.length)%songs.length;playSong(i)};
-audio.onended=()=>next.click();
-setInterval(()=>{if(!audio.paused)audio.volume=1},1000);
+// PROGRESS + TIME
+audio.ontimeupdate=()=>{
+  if(audio.duration){
+    progress.value=(audio.currentTime/audio.duration)*100;
+    currentEl.textContent=formatTime(audio.currentTime);
+    durationEl.textContent=formatTime(audio.duration);
+  }
+}
+progress.oninput=()=>{if(audio.duration)audio.currentTime=(progress.value/100)*audio.duration};
+function formatTime(s){let m=Math.floor(s/60),sec=Math.floor(s%60);return`${m}:${sec<10?'0':''}${sec}`}
+
+// JAGA SUARA IPHONE
+setInterval(()=>{if(!audio.paused)audio.volume=1},2000);
