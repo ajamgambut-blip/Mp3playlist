@@ -1,44 +1,25 @@
-const CACHE_NAME = 'music-player-v2';
-const FILES_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/style.css',
-  '/script.js',
-  '/manifest.json'
+const CACHE = "musikku-v3";
+const FILES = [
+  "./",
+  "./index.html",
+  "./script.js",
+  "./style.css",
+  "./manifest.json",
+  "./icon-512.png",
+  "./icon-192.png"
 ];
 
-// 1. Pas install, simpen semua file ke cache
-self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(FILES_TO_CACHE);
-    })
-  );
+self.addEventListener("install", e => {
+  e.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)));
   self.skipWaiting();
 });
 
-// 2. Pas aktif, hapus cache lama
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys => {
-      return Promise.all(
-        keys.map(key => {
-          if (key !== CACHE_NAME) return caches.delete(key);
-        })
-      );
-    })
-  );
-  self.clients.claim();
+self.addEventListener("activate", e => {
+  e.waitUntil(self.clients.claim());
 });
 
-// 3. Intercept request → kalo offline ambil dari cache
-self.addEventListener('fetch', e => {
+self.addEventListener("fetch", e => {
   e.respondWith(
-    caches.match(e.request).then(response => {
-      return response || fetch(e.request);
-    })
+    caches.match(e.request).then(res => res || fetch(e.request))
   );
-});
-self.addEventListener('fetch', event => {
-  event.respondWith(fetch(event.request));
 });
