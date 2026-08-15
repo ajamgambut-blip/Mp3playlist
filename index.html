@@ -2,32 +2,48 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#1DB954">
-  <title>MusikKu</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>MusikKu Pro</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
+  <div class="bg-blur"></div>
   <div class="player">
-    <img id="cover" src="./icon-512.png">
-    <h2 id="title">Pilih Lagu Dulu</h2>
-    <p id="artist">-</p>
+    <div class="cover-box">
+      <img id="cover" src="./icon-512.png">
+      <canvas id="visual"></canvas>
+    </div>
+    
+    <h2 id="title">MusikKu Pro</h2>
+    <p id="artist">Tambah lagu dulu ya</p>
 
+    <div class="time">
+      <span id="current">0:00</span>
+      <span id="duration">0:00</span>
+    </div>
     <input type="range" id="progress" value="0" max="100">
 
-    <div class="btns">
+    <div class="controls">
+      <button id="repeat">🔁</button>
       <button id="prev">⏮️</button>
       <button id="play">▶️</button>
       <button id="next">⏭️</button>
+      <button id="shuffle">🔀</button>
     </div>
 
-    <label for="file" class="upload-btn">+ Tambah Lagu</label>
+    <label for="file" class="add-btn">+ Tambah Musik</label>
     <input type="file" id="file" accept="audio/*" multiple>
 
-    <ul id="list"></ul>
+    <div class="playlist-box">
+      <h3>Playlist</h3>
+      <ul id="list"></ul>
+    </div>
   </div>
-  <audio id="audio" playsinline></audio>
+  <audio id="audio" playsinline webkit-playsinline></audio>
   <script src="./script.js"></script>
 </body>
 </html>
