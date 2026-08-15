@@ -2,87 +2,36 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-  >
-  <title>Musik Offline</title>
-  <!-- PWA -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#121212">
-  <!-- iPhone Home Screen Icon -->
-  <link rel="apple-touch-icon" href="icon-512.png">
-  <!-- iOS PWA -->
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Musik Offline">
-  <!-- CSS -->
-  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1DB954">
+  <title>MusikKu Offline</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./icon-512.png">
+  <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-  <div class="container">
-    <!-- HEADER -->
-    <header>
-      <h1>🎵 Musik Offline</h1>
-      <button id="addSongBtn">
-        + Add Song
-      </button>
-      <input
-  type="file"
-  id="fileInput">
-    </header>
-    <!-- NOW PLAYING -->
-    <main>
-      <div class="now-playing">
-        <img
-          id="coverArt"
-          src="icon-512.png"
-          alt="Cover Album"
-        >
-        <canvas id="visualizer"></canvas>
-        <h2 id="songTitle">
-          Pilih lagu dulu
-        </h2>
-        <p id="songArtist">
-          -
-        </p>
-      </div>
-      <!-- PLAYLIST -->
-      <ul id="playlist"></ul>
-    </main>
-    <!-- PLAYER -->
-    <footer class="player-controls">
-      <audio id="audioPlayer"></audio>
-      <input
-        type="range"
-        id="progressBar"
-        value="0"
-        min="0"
-        max="100"
-      >
-      <div class="buttons">
-        <button id="prevBtn">
-          ⏮️
-        </button>
-        <button id="playBtn">
-          ▶️
-        </button>
-        <button id="nextBtn">
-          ⏭️
-        </button>
-      </div>
-    </footer>
+  <div class="player">
+    <img id="coverArt" src="./icon-512.png" alt="Cover">
+    <h2 id="songTitle">Belum ada lagu</h2>
+    <p id="songArtist">-</p>
+
+    <canvas id="visualizer"></canvas>
+
+    <input type="range" id="progressBar" value="0" max="100">
+
+    <div class="controls">
+      <button id="prevBtn">⏮️</button>
+      <button id="playBtn">▶️</button>
+      <button id="nextBtn">⏭️</button>
+    </div>
+
+    <button id="addSongBtn">+ Tambah Lagu</button>
+    <input type="file" id="fileInput" accept="audio/*" multiple hidden>
+
+    <ul id="playlist"></ul>
   </div>
-  <!-- APP -->
-  <script src="https://cdn.jsdelivr.net/npm/jsmediatags@3.9.7/dist/jsmediatags.min.js"></script>
-  <script src="script.js"></script>
-  <!-- SERVICE WORKER -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js')
-        .then(() => console.log('SW Registered'))
-        .catch(err => console.error(err));
-    }
-  </script>
+
+  <audio id="audioPlayer" playsinline webkit-playsinline></audio>
+  <script src="./script.js"></script>
 </body>
 </html>
