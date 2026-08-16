@@ -2,50 +2,177 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>MusikKu Pro</title>
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-512.png">
-<link rel="stylesheet" href="style.css">
+<meta
+    name="viewport"
+    content="width=device-width,
+    initial-scale=1.0,
+    maximum-scale=1.0,
+    user-scalable=no"
+>
+<meta
+    name="theme-color"
+    content="#080808"
+>
+<meta
+    name="apple-mobile-web-app-capable"
+    content="yes"
+>
+<meta
+    name="apple-mobile-web-app-status-bar-style"
+    content="black-translucent"
+>
+<meta
+    name="apple-mobile-web-app-title"
+    content="MyMusic"
+>
+<link
+    rel="manifest"
+    href="manifest.json"
+>
+<link
+    rel="apple-touch-icon"
+    href="icon-192.png"
+>
+<link
+    rel="stylesheet"
+    href="style.css"
+>
+<title>MyMusic</title>
 </head>
 <body>
-<div id="bg"></div>
-<div class="player">
-  <img id="cover" src="icon-512.png">
-  <canvas id="visualizer"></canvas>
-  <h2 id="title">MusikKu Pro</h2>
-  <p id="artist">Mode Offline</p>
-
-  <div class="tabs">
-    <button class="tab-btn active" data-tab="offline">Offline</button>
-    <button class="tab-btn" data-tab="online">Cari YouTube</button>
-    <button class="tab-btn" data-tab="playlist">Playlist</button>
-  </div>
-
-  <div id="offline-tab" class="tab-content">
-    <label class="btn"><input type="file" id="fileInput" accept="audio/*,video/*" multiple hidden>➕ Tambah MP3 / MP4 / WAV</label>
-    <div id="offlineList" class="list"></div>
-  </div>
-
-  <div id="online-tab" class="tab-content" style="display:none">
-    <div class="search-box">
-      <input type="text" id="searchInput" placeholder="Cari lagu di YouTube...">
-      <button id="searchBtn">🔍</button>
+<div class="app">
+<header>
+    <div>
+        <h1>MyMusic</h1>
+        <p id="statusText">
+            Offline Music Player
+        </p>
     </div>
-    <p style="font-size:12px;color:#aaa;text-align:center;margin-bottom:10px">Klik hasil untuk buka di YouTube</p>
-    <div id="searchResult" class="list"></div>
-  </div>
-
-  <div id="playlist-tab" class="tab-content" style="display:none">
-    <div id="playlistList" class="list"></div>
-  </div>
-
-  <audio id="audio" playsinline></audio>
-  <div class="progress"><span id="current">0:00</span><input type="range" id="progress" value="0"><span id="duration">0:00</span></div>
-  <div class="controls">
-    <button id="repeat">🔁</button><button id="prev">⏮</button><button id="play">▶</button><button id="next">⏭</button><button id="shuffle">🔀</button>
-  </div>
+    <button
+        id="addBtn"
+        class="icon-btn"
+    >
+        ＋
+    </button>
+</header>
+<section class="player">
+    <div
+        class="cover"
+        id="cover"
+    >
+        <span>♪</span>
+    </div>
+    <div class="now-playing">
+        <h2 id="title">
+            Belum ada lagu
+        </h2>
+        <p id="artist">
+            Tambahkan musik untuk mulai
+        </p>
+    </div>
+    <div class="progress-area">
+        <span id="currentTime">
+            0:00
+        </span>
+        <input
+            type="range"
+            id="progress"
+            min="0"
+            max="100"
+            value="0"
+            step="0.1"
+        >
+        <span id="duration">
+            0:00
+        </span>
+    </div>
+    <div class="controls">
+        <button id="prevBtn">
+            ⏮
+        </button>
+        <button
+            id="playBtn"
+            class="play"
+        >
+            ▶
+        </button>
+        <button id="nextBtn">
+            ⏭
+        </button>
+    </div>
+    <div class="secondary-controls">
+        <button id="shuffleBtn">
+            🔀
+        </button>
+        <button id="repeatBtn">
+            🔁
+        </button>
+    </div>
+</section>
+<section
+    class="add-panel"
+    id="addPanel"
+>
+    <h3>
+        Tambahkan Musik
+    </h3>
+    <label class="file-btn">
+        📁 Pilih File
+        <input
+            type="file"
+            id="fileInput"
+            accept="
+                audio/*,
+                video/mp4,
+                .mp3,
+                .wav,
+                .m4a,
+                .aac
+            "
+            multiple
+        >
+    </label>
+    <div class="youtube-input">
+        <input
+            type="url"
+            id="youtubeInput"
+            placeholder="Tempel link YouTube..."
+        >
+        <button id="youtubeBtn">
+            Tambah
+        </button>
+    </div>
+</section>
+<section class="library">
+    <div class="library-header">
+        <div>
+            <h3>
+                Library
+            </h3>
+            <span id="libraryCount">
+                0 lagu
+            </span>
+        </div>
+        <button id="clearBtn">
+            Hapus Semua
+        </button>
+    </div>
+    <div id="playlist"></div>
+</section>
+<audio
+    id="audio"
+    preload="metadata"
+    playsinline
+></audio>
+<video
+    id="video"
+    playsinline
+></video>
+<div id="youtubePlayer"></div>
 </div>
+<script
+    src="https://www.youtube.com/iframe_api"
+></script>
 <script src="script.js"></script>
 </body>
 </html>
