@@ -1,49 +1,36 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#0a0a0a">
-  <title>MusikKu Pro</title>
-  <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MusikKu Pro</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="bg-blur"></div>
   <div class="player">
-    <div class="cover-box">
-      <img id="cover" src="./icon-512.png">
-      <canvas id="visual"></canvas>
-    </div>
-    
-    <h2 id="title">MusikKu Pro</h2>
-    <p id="artist">Tambah lagu dulu ya</p>
+    <img id="cover" src="https://via.placeholder.com/300" alt="cover">
+    <h2 id="title">Pilih Lagu</h2>
+    <p id="artist">MusikKu Pro</p>
 
-    <div class="time">
+    <div class="online-box">
+      <input type="text" id="searchInput" placeholder="Cari lagu di YouTube...">
+      <button id="searchBtn">🔍 Cari</button>
+    </div>
+    <div id="searchResult"></div>
+
+    <audio id="audio"></audio>
+    <div class="progress">
       <span id="current">0:00</span>
+      <input type="range" id="progress" value="0">
       <span id="duration">0:00</span>
     </div>
-    <input type="range" id="progress" value="0" max="100">
-
     <div class="controls">
-      <button id="repeat">🔁</button>
-      <button id="prev">⏮️</button>
-      <button id="play">▶️</button>
-      <button id="next">⏭️</button>
-      <button id="shuffle">🔀</button>
-    </div>
-
-    <label for="file" class="add-btn">+ Tambah Musik</label>
-<input type="file" id="file" accept=".mp3,.wav,.m4a,.flac,.aac,audio/*" multiple>
-
-    <div class="playlist-box">
-      <h3>Playlist</h3>
-      <ul id="list"></ul>
+      <button id="prev">⏮</button>
+      <button id="play">▶</button>
+      <button id="next">⏭</button>
     </div>
   </div>
-  <audio id="audio" playsinline webkit-playsinline></audio>
-  <script src="./script.js"></script>
+  <iframe id="yt-player" style="display:none" allow="autoplay"></iframe>
+<script src="script.js"></script>
 </body>
 </html>
