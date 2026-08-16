@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+
+<title>YewTube Audio Test</title>
+
+<style>
+*{
+  box-sizing:border-box;
+}
+
+body{
+  margin:0;
+  padding:24px;
+  background:#101114;
+  color:white;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",sans-serif;
+}
+
+.card{
+  max-width:520px;
+  margin:auto;
+  background:#1b1d22;
+  padding:22px;
+  border-radius:24px;
+}
+
+h1{
+  margin:0 0 8px;
+  font-size:25px;
+}
+
+p{
+  color:#aaa;
+  line-height:1.5;
+}
+
+input{
+  width:100%;
+  padding:14px;
+  border-radius:14px;
+  border:1px solid #3a3d45;
+  background:#101114;
+  color:white;
+  font-size:15px;
+}
+
+button{
+  width:100%;
+  margin-top:12px;
+  padding:14px;
+  border:0;
+  border-radius:14px;
+  background:white;
+  color:#111;
+  font-weight:700;
+  font-size:16px;
+}
+
+button:disabled{
+  opacity:.5;
+}
+
+.status{
+  margin-top:18px;
+  padding:14px;
+  border-radius:14px;
+  background:#101114;
+  white-space:pre-wrap;
+  line-height:1.5;
+  font-size:14px;
+}
+
+.ok{
+  color:#6ee7a0;
+}
+
+.error{
+  color:#ff707c;
+}
+
+audio{
+  width:100%;
+  margin-top:16px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h1>🎵 YewTube Audio Test</h1>
+
+<p>
+Masukkan link YouTube. Tes ini akan mencoba mengambil audio
+melalui API YewTube/Invidious.
+</p>
+
+<input
+  id="youtubeUrl"
+  placeholder="https://www.youtube.com/watch?v=..."
+>
+
+<button id="testButton">
+TEST PLAY
+</button>
+
+<div id="status" class="status">
+Status: Menunggu link...
+</div>
+
+<audio
+  id="player"
+  controls
+  playsinline>
+</audio>
+
+</div>
+
+<script>
+
+const API =
+"https://yewtu.be/api/v1/videos/";
+
+const input =
+document.getElementById("youtubeUrl");
+
+const button =
+document.getElementById("testButton");
+
+const status =
+document.getElementById("status");
+
+const player =
+document.getElementById("player");
+
+
+function setStatus(text,type=""){
+
+  status.textContent = text;
+
+  status.className =
+    "status " + type;
+
+}
+
+
+function getVideoId(value){
+
+  value = value.trim();
+
+  /*
+   * Kalau langsung memasukkan ID
+   */
+  if(
+    /^[A-Za-z0-9_-]{11}$/.test(value)
+  ){
+    return value;
+  }
+
+  try{
+
+    const url = new URL(value);
+
+    /*
+     * youtu.be/XXXXXXXXXXX
+     */
+    if(
+      url.hostname.includes("youtu.be")
+    ){
+
+      return url.pathname
+        .split("/")
+        .filter(Boolean)[0];
+
+    }
+
+    /*
+     * youtube.com/watch?v=XXXXXXXXXXX
+     */
+    const v =
+      url.searchParams.get("v");
+
+    if(v){
+      return v;
+    }
+
+    /*
+     * /shorts/XXXXXXXXXXX
+     */
+    const parts =
+      url.pathname
+      .split("/")
+      .filter(Boolean);
+
+    const shorts =
+      parts.indexOf("shorts");
+
+    if(
+      shorts >= 0 &&
+      parts[shorts + 1]
+    ){
+      return parts[shorts + 1];
+    }
+
+    /*
+     * /embed/XXXXXXXXXXX
+     */
+    const embed =
+      parts.indexOf("embed");
+
+    if(
+      embed >= 0 &&
+      parts[embed + 1]
+    ){
+      return parts[embed + 1];
+    }
+
+  }catch(e){
+
+  }
+
+  return null;
+}
+
+
+function findAudio(formats){
+
+  if(
+    !Array.isArray(formats)
+  ){
+    return null;
+  }
+
+  const audioFormats =
+    formats.filter(format => {
+
+      const type =
+        String(
+          format.type || ""
+        ).toLowerCase();
+
+      return (
+        type.startsWith("audio/") ||
+        (
+          format.audioQuality &&
+          !format.resolution &&
+          !format.qualityLabel
+        )
+      );
+
+    });
+
+  /*
+   * Cari bitrate tertinggi
+   */
+  audioFormats.sort(
+    (a,b) =>
+      Number(b.bitrate || 0) -
+      Number(a.bitrate || 0)
+  );
+
+  return audioFormats[0] || null;
+}
+
+
+button.onclick =
+async function(){
+
+  const videoId =
+    getVideoId(input.value);
+
+  player.pause();
+
+  player.removeAttribute("src");
+
+  player.load();
+
+  if(!videoId){
+
+    setStatus(
+      "❌ Link YouTube tidak dikenali.",
+      "error"
+    );
+
+    return;
+  }
+
+  button.disabled = true;
+
+  setStatus(
+    "⏳ Menghubungi YewTube...\n\n" +
+    "Video ID: " + videoId
+  );
+
+  try{
+
+    const endpoint =
+      API +
+      encodeURIComponent(videoId) +
+      "?hl=en";
+
+    const response =
+      await fetch(endpoint,{
+        method:"GET",
+        headers:{
+          "Accept":
+            "application/json"
+        },
+        cache:"no-store"
+      });
+
+
+    if(!response.ok){
+
+      throw new Error(
+        "YewTube API HTTP " +
+        response.status
+      );
+
+    }
+
+
+    setStatus(
+      "✅ API berhasil dihubungi.\n\n" +
+      "Membaca format audio..."
+    );
+
+
+    const data =
+      await response.json();
+
+
+    const title =
+      data.title ||
+      "(Tanpa judul)";
+
+
+    const formats =
+      data.adaptiveFormats || [];
+
+
+    const audio =
+      findAudio(formats);
+
+
+    if(
+      !audio ||
+      !audio.url
+    ){
+
+      throw new Error(
+        "Audio stream tidak ditemukan.\n\n" +
+        "Jumlah adaptive format: " +
+        formats.length
+      );
+
+    }
+
+
+    const mime =
+      audio.type ||
+      "unknown";
+
+
+    const bitrate =
+      audio.bitrate
+      ? Math.round(
+          Number(audio.bitrate) /
+          1000
+        ) + " kbps"
+      : "unknown";
+
+
+    setStatus(
+      "✅ AUDIO STREAM DITEMUKAN!\n\n" +
+
+      "Judul:\n" +
+      title +
+
+      "\n\nFormat:\n" +
+      mime +
+
+      "\n\nBitrate:\n" +
+      bitrate +
+
+      "\n\nMencoba playback..."
+    );
+
+
+    player.src =
+      audio.url;
+
+    player.load();
+
+
+    player.onloadedmetadata =
+    function(){
+
+      setStatus(
+        "🟢 AUDIO BERHASIL DIMUAT!\n\n" +
+
+        "Judul:\n" +
+        title +
+
+        "\n\nDurasi:\n" +
+        (
+          isFinite(player.duration)
+          ? Math.round(
+              player.duration
+            ) + " detik"
+          : "Tidak diketahui"
+        ) +
+
+        "\n\nTekan ▶️ Play jika belum mulai.",
+        "ok"
+      );
+
+    };
+
+
+    player.onerror =
+    function(){
+
+      const error =
+        player.error;
+
+      setStatus(
+        "❌ STREAM DITEMUKAN,\n" +
+        "TAPI GAGAL DIMAINKAN.\n\n" +
+
+        "MediaError code: " +
+        (
+          error
+          ? error.code
+          : "unknown"
+        ) +
+
+        "\n\nKemungkinan:\n" +
+        "• CORS\n" +
+        "• URL stream expired\n" +
+        "• Format tidak didukung Safari\n" +
+        "• Stream diblokir YouTube",
+        "error"
+      );
+
+    };
+
+
+    try{
+
+      await player.play();
+
+      setStatus(
+        "🟢 BERHASIL PLAY!\n\n" +
+
+        title +
+
+        "\n\nAudio sedang dimainkan.",
+        "ok"
+      );
+
+    }catch(playError){
+
+      /*
+       * Safari sering menolak autoplay.
+       * Ini BUKAN berarti stream gagal.
+       */
+
+      setStatus(
+        "🟡 STREAM BERHASIL DITEMUKAN.\n\n" +
+
+        "Safari menolak autoplay.\n\n" +
+
+        "Tekan tombol ▶️ pada player.",
+        ""
+      );
+
+    }
+
+  }catch(error){
+
+    console.error(error);
+
+    setStatus(
+      "❌ TES GAGAL\n\n" +
+
+      error.message +
+
+      "\n\n" +
+
+      "Kalau muncul CORS / Failed to fetch, " +
+      "berarti browser tidak mengizinkan PWA " +
+      "mengakses YewTube secara langsung.",
+      "error"
+    );
+
+  }finally{
+
+    button.disabled = false;
+
+  }
+
+};
+
+
+/*
+ * Media Session
+ */
+if(
+  "mediaSession" in navigator
+){
+
+  player.addEventListener(
+    "play",
+    () => {
+
+      navigator.mediaSession.metadata =
+        new MediaMetadata({
+          title:"YewTube Test",
+          artist:"YouTube Online"
+        });
+
+    }
+  );
+
+
+  navigator.mediaSession.setActionHandler(
+    "play",
+    () => player.play()
+  );
+
+  navigator.mediaSession.setActionHandler(
+    "pause",
+    () => player.pause()
+  );
+
+}
+
+</script>
+
+</body>
+</html>
