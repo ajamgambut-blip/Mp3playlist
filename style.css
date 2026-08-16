@@ -1,15 +1,322 @@
-*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-body{background:#0a0a0a;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:20px}
-.player{width:100%;max-width:420px;background:linear-gradient(180deg,#1a1a1a 0%,#0f0f0f 100%);padding:25px;border-radius:30px;box-shadow:0 10px 40px rgba(29,185,84,0.1)}
-.cover-box{position:relative;margin-bottom:20px}
-#cover{width:100%;aspect-ratio:1;border-radius:20px;object-fit:cover;position:relative;z-index:2}
-.glow{position:absolute;top:10%;left:10%;width:80%;height:80%;background:#1DB954;filter:blur(40px);opacity:0.3;z-index:1}
-h2{font-size:20px;margin-bottom:5px;text-align:center} p{color:#aaa;font-size:14px;margin-bottom:20px;text-align:center}
-.tabs{display:flex;gap:8px;margin-bottom:15px}.tab-btn{flex:1;padding:10px;border:none;border-radius:12px;background:#2a2a2a;color:#aaa;cursor:pointer;font-size:13px}.tab-btn.active{background:#1DB954;color:#000;font-weight:bold}
-.search-box{display:flex;gap:8px;margin-bottom:15px} #searchInput{flex:1;padding:12px;border-radius:12px;border:none;background:#2a2a2a;color:#fff} #searchBtn{padding:12px 18px;border:none;border-radius:12px;background:#1DB954;color:#000;font-weight:bold;cursor:pointer}
-.btn-upload{display:block;padding:12px;background:#1DB954;border-radius:12px;text-align:center;margin-bottom:15px;cursor:pointer;color:#000;font-weight:bold}
-.list-item{display:flex;align-items:center;padding:10px;border-radius:12px;margin-bottom:8px;background:#222;cursor:pointer}.list-item:hover{background:#333}
-.list-item img{width:50px;height:50px;border-radius:8px;margin-right:10px;object-fit:cover}.list-item span{flex:1;text-align:left;font-size:14px}
-.list-item button{background:#ff4d4d;border:none;color:#fff;padding:6px 10px;border-radius:8px;margin-left:5px;cursor:pointer}
-.progress{display:flex;align-items:center;gap:8px;margin:20px 0;font-size:12px} #progress{flex:1;accent-color:#1DB954}
-.controls{display:flex;justify-content:center;gap:20px}.controls button{font-size:28px;background:none;border:none;color:#fff;cursor:pointer}
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "SF Pro Display",
+        "Segoe UI",
+        sans-serif;
+}
+body{
+    background:#080808;
+    color:white;
+    min-height:100vh;
+    -webkit-tap-highlight-color:
+        transparent;
+}
+button{
+    border:0;
+    background:none;
+    color:white;
+    cursor:pointer;
+}
+.app{
+    width:100%;
+    max-width:620px;
+    margin:auto;
+    min-height:100vh;
+    padding:
+        20px
+        20px
+        80px;
+}
+/* HEADER */
+header{
+    display:flex;
+    justify-content:
+        space-between;
+    align-items:center;
+    margin-bottom:25px;
+}
+header h1{
+    font-size:29px;
+    font-weight:800;
+}
+header p{
+    color:#777;
+    font-size:13px;
+    margin-top:4px;
+}
+.icon-btn{
+    width:44px;
+    height:44px;
+    border-radius:50%;
+    background:#202020;
+    font-size:28px;
+}
+/* PLAYER */
+.player{
+    text-align:center;
+}
+.cover{
+    width:270px;
+    height:270px;
+    margin:
+        10px auto
+        25px;
+    border-radius:26px;
+    background:
+        linear-gradient(
+            135deg,
+            #292929,
+            #090909
+        );
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    box-shadow:
+        0 25px 60px
+        rgba(0,0,0,.55);
+}
+.cover span{
+    font-size:100px;
+    color:#555;
+}
+.cover img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+}
+/* TITLE */
+.now-playing h2{
+    font-size:21px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.now-playing p{
+    margin-top:6px;
+    color:#777;
+}
+/* PROGRESS */
+.progress-area{
+    display:grid;
+    grid-template-columns:
+        42px 1fr 42px;
+    align-items:center;
+    gap:8px;
+    margin-top:25px;
+}
+.progress-area span{
+    font-size:11px;
+    color:#777;
+}
+input[type="range"]{
+    width:100%;
+    accent-color:white;
+}
+/* CONTROLS */
+.controls{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:36px;
+    margin-top:20px;
+}
+.controls button{
+    font-size:27px;
+}
+.controls .play{
+    width:65px;
+    height:65px;
+    border-radius:50%;
+    background:white;
+    color:black;
+    font-size:24px;
+}
+/* SECONDARY */
+.secondary-controls{
+    display:flex;
+    justify-content:center;
+    gap:40px;
+    margin-top:18px;
+}
+.secondary-controls button{
+    color:#777;
+    font-size:18px;
+}
+.secondary-controls button.active{
+    color:white;
+}
+/* ADD */
+.add-panel{
+    margin-top:35px;
+    padding:18px;
+    border-radius:18px;
+    background:#151515;
+}
+.add-panel h3{
+    margin-bottom:15px;
+}
+.file-btn{
+    display:block;
+    padding:14px;
+    border-radius:12px;
+    text-align:center;
+    background:#252525;
+    cursor:pointer;
+}
+.file-btn input{
+    display:none;
+}
+.youtube-input{
+    display:flex;
+    gap:8px;
+    margin-top:10px;
+}
+.youtube-input input{
+    flex:1;
+    min-width:0;
+    padding:13px;
+    border:0;
+    outline:none;
+    border-radius:10px;
+    background:#222;
+    color:white;
+}
+.youtube-input button{
+    padding:
+        0 15px;
+    border-radius:10px;
+    background:white;
+    color:black;
+}
+/* LIBRARY */
+.library{
+    margin-top:30px;
+}
+.library-header{
+    display:flex;
+    align-items:center;
+    justify-content:
+        space-between;
+    margin-bottom:12px;
+}
+.library-header h3{
+    font-size:19px;
+}
+.library-header span{
+    color:#666;
+    font-size:11px;
+}
+.library-header button{
+    color:#ff5b5b;
+    font-size:12px;
+}
+/* TRACK */
+.track{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:12px 5px;
+    border-bottom:
+        1px solid #1b1b1b;
+}
+.track-cover{
+    width:52px;
+    height:52px;
+    flex-shrink:0;
+    border-radius:11px;
+    background:#222;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    font-size:22px;
+}
+.track-cover img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+}
+.track-info{
+    flex:1;
+    min-width:0;
+}
+.track-title{
+    font-size:14px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.track-type{
+    margin-top:4px;
+    font-size:11px;
+    color:#666;
+}
+.track-buttons{
+    display:flex;
+    gap:5px;
+}
+.track-play,
+.track-delete{
+    width:38px;
+    height:38px;
+    border-radius:50%;
+    background:#202020;
+}
+.track-delete{
+    color:#ff5b5b;
+}
+/* EMPTY */
+.empty{
+    text-align:center;
+    color:#555;
+    padding:35px 10px;
+    font-size:14px;
+}
+/* VIDEO */
+#video{
+    display:none;
+    width:100%;
+    margin-top:20px;
+    border-radius:15px;
+    background:black;
+}
+#youtubePlayer{
+    position:fixed;
+    left:-100px;
+    top:-100px;
+    width:1px;
+    height:1px;
+    opacity:0;
+    pointer-events:none;
+}
+/* IMPORT */
+.importing{
+    opacity:.5;
+    pointer-events:none;
+}
+/* MOBILE */
+@media(max-width:500px){
+    .app{
+        padding:
+            16px
+            16px
+            70px;
+    }
+    .cover{
+        width:240px;
+        height:240px;
+    }
+}
+@media(max-height:700px){
+    .cover{
+        width:190px;
+        height:190px;
+        margin-bottom:18px;
+    }
+}
