@@ -638,55 +638,75 @@ async function search(){
 
 
 /* SHOW RESULTS */
+function closeResults(){
+    $("results").innerHTML="";
+}
 
 function showResults(results){
 
- $("results").innerHTML="";
+    $("results").innerHTML=`
+        <div class="result-head">
+            <span>Hasil YouTube</span>
+            <button id="closeResults">✕</button>
+        </div>
+    `;
 
- results.forEach(song=>{
+    $("closeResults").onclick=closeResults;
 
-  const d=document.createElement("div");
+    results.forEach(song=>{
 
-  d.className="result";
+        const d=document.createElement("div");
 
-  d.innerHTML=`
+        d.className="result";
 
-   <img src="${song.thumb}">
+        d.innerHTML=`
+            <img src="${song.thumb}">
 
-   <div class="ri">
+            <div class="ri">
 
-    <b>${esc(song.title)}</b>
+                <b>${esc(song.title)}</b>
 
-    <small>
-     ${esc(song.artist)}
-    </small>
+                <small>
+                    ${esc(song.artist)}
+                </small>
 
-    <button class="p">
-     ▶ Play
-    </button>
+                <button class="p">
+                    ▶ Play
+                </button>
 
-    <button class="a">
-     ＋ Playlist
-    </button>
+                <button class="a">
+                    ＋ Playlist
+                </button>
 
-   </div>
-  `;
+            </div>
+        `;
 
-  d.querySelector(".p").onclick=()=>{
-   playYT(song);
-  };
+        /* PLAY */
 
-  d.querySelector(".a").onclick=async()=>{
+        d.querySelector(".p").onclick=()=>{
 
-   await saveSong(song);
+            playYT(song);
 
-   songs=await getSongs();
+            closeResults();
 
-   render();
-  };
+        };
 
-  $("results").appendChild(d);
- });
+        /* PLAYLIST */
+
+        d.querySelector(".a").onclick=async()=>{
+
+            await saveSong(song);
+
+            songs=await getSongs();
+
+            render();
+
+            closeResults();
+
+        };
+
+        $("results").appendChild(d);
+    });
 }
 
 
