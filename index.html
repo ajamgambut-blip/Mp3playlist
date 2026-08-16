@@ -3,20 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MusikKu Pro</title>
+<title>MusikKu Pro 2.0</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="player">
-    <img id="cover" src="https://via.placeholder.com/300" alt="cover">
-    <h2 id="title">Pilih Lagu</h2>
-    <p id="artist">MusikKu Pro</p>
-
-    <div class="online-box">
-      <input type="text" id="searchInput" placeholder="Cari lagu di YouTube...">
-      <button id="searchBtn">🔍 Cari</button>
+    <div class="cover-box">
+      <img id="cover" src="https://via.placeholder.com/300/1a1a1a/fff?text=MusikKu" alt="cover">
+      <div class="glow"></div>
     </div>
-    <div id="searchResult"></div>
+    <h2 id="title">Belum ada lagu</h2>
+    <p id="artist">MusikKu Pro 2.0</p>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="showTab('online')">Online</button>
+      <button class="tab-btn" onclick="showTab('offline')">Offline</button>
+    </div>
+
+    <div id="online-tab" class="tab">
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Cari lagu di YouTube...">
+        <button id="searchBtn">🔍</button>
+      </div>
+      <div id="searchResult"></div>
+    </div>
+
+    <div id="offline-tab" class="tab" style="display:none">
+      <label for="fileInput" class="btn-upload">➕ Tambah Lagu dari File</label>
+      <input type="file" id="fileInput" accept="audio/*" multiple style="display:none">
+      <div id="offlineList"></div>
+    </div>
 
     <audio id="audio"></audio>
     <div class="progress">
@@ -30,7 +46,6 @@
       <button id="next">⏭</button>
     </div>
   </div>
-  <iframe id="yt-player" style="display:none" allow="autoplay"></iframe>
 <script src="script.js"></script>
 </body>
 </html>
