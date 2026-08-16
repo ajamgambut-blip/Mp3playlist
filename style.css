@@ -64,3 +64,25 @@ input[type=range]{width:100%;accent-color:white}
 .cover{width:230px;height:230px}
 .app{padding:16px 15px 60px}
 }
+.result-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:8px 0 12px;
+    color:#aaa;
+    font-size:13px;
+}
+
+.result-head button{
+    width:30px;
+    height:30px;
+    border-radius:50%;
+    background:#252525;
+    color:#aaa;
+    font-size:14px;
+}
+
+.result-head button:active{
+    transform:scale(.9);
+}
+
