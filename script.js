@@ -1,4 +1,4 @@
-const YOUTUBE_API_KEY="ISI_API_KEY_KAMU";
+const YOUTUBE_API_KEY="AIzaSyCuRrZuamgjKNLBCN_tfTdfmLJsuuno78c";
 
 const $=id=>document.getElementById(id);
 const audio=$("audio"),playlist=$("playlist");
