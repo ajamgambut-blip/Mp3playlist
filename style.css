@@ -86,102 +86,119 @@ input[type=range]{width:100%;accent-color:white}
     transform:scale(.9);
 }
 
-/* =========================================================
-   MYMUSIC — VINYL PLAYER
-========================================================= */
+ /* =========================================================
+    MYMUSIC — PREMIUM VINYL PLAYER
+ ========================================================= */
 
 #vinylWrap{
+    position:relative;
     width:100%;
     display:flex;
     justify-content:center;
     align-items:center;
-    margin:5px auto 18px;
+    margin:0 auto 14px;
 }
 
-.vinyl{
-    width:230px;
-    height:230px;
 
+/* =========================================================
+   VINYL
+ ========================================================= */
+
+.vinyl{
     position:relative;
+
+    width:min(76vw,310px);
+    aspect-ratio:1/1;
 
     border-radius:50%;
 
     background:
         radial-gradient(
-            circle at center,
-            #111 0 7%,
-            #292929 7.5% 8%,
-            #080808 8.5% 100%
+            circle at 50% 50%,
+            #050505 0 10%,
+            #111 10.5% 11%,
+            #050505 11.5% 100%
         );
 
     box-shadow:
-        0 15px 35px rgba(0,0,0,.55),
-        inset 0 0 20px rgba(255,255,255,.04);
+        0 25px 55px rgba(0,0,0,.75),
+        0 8px 20px rgba(0,0,0,.5),
+        inset 0 0 35px rgba(255,255,255,.025);
 
     overflow:hidden;
 
     animation:
-        vinylSpin 7s linear infinite;
+        vinylRotate 9s linear infinite;
 
     animation-play-state:paused;
+
+    transform:translateZ(0);
+}
+
+.vinyl.playing{
+    animation-play-state:running;
 }
 
 
-/* GARIS ALUR VINYL */
+/* =========================================================
+   VINYL GROOVES
+ ========================================================= */
 
 .vinyl::before{
     content:"";
 
     position:absolute;
-    inset:7px;
+    inset:2%;
 
     border-radius:50%;
 
     background:
         repeating-radial-gradient(
             circle at center,
-            transparent 0,
-            transparent 3px,
-            rgba(255,255,255,.045) 3.5px,
-            transparent 4.5px
+            rgba(255,255,255,.035) 0px,
+            rgba(255,255,255,.035) 1px,
+            transparent 2px,
+            transparent 5px
         );
+
+    opacity:.8;
 
     pointer-events:none;
 }
 
 
-/* REFLEKSI CAHAYA */
+/* =========================================================
+   VINYL LIGHT REFLECTION
+ ========================================================= */
 
 .vinyl::after{
     content:"";
 
     position:absolute;
-    inset:0;
+    inset:-10%;
 
     border-radius:50%;
 
     background:
-        linear-gradient(
-            135deg,
-            rgba(255,255,255,.12),
-            transparent 28%,
-            transparent 70%,
-            rgba(255,255,255,.025)
+        conic-gradient(
+            from 210deg,
+            transparent 0deg,
+            rgba(255,255,255,.12) 35deg,
+            transparent 65deg,
+            transparent 170deg,
+            rgba(255,255,255,.035) 220deg,
+            transparent 255deg
         );
+
+    mix-blend-mode:screen;
 
     pointer-events:none;
 
-    z-index:4;
+    z-index:5;
 }
 
 
-/* PUTAR */
-
-.vinyl.playing{
-    animation-play-state:running;
-}
-
-@keyframes vinylSpin{
+@keyframes vinylRotate{
 
     from{
         transform:rotate(0deg);
@@ -195,15 +212,15 @@ input[type=range]{width:100%;accent-color:white}
 
 
 /* =========================================================
-   COVER DI TENGAH VINYL
-========================================================= */
+   ALBUM ART / LABEL
+ ========================================================= */
 
 #vinylCenter{
 
     position:absolute;
 
-    width:92px;
-    height:92px;
+    width:38%;
+    aspect-ratio:1/1;
 
     left:50%;
     top:50%;
@@ -212,23 +229,30 @@ input[type=range]{width:100%;accent-color:white}
 
     border-radius:50%;
 
-    background:#151515;
+    overflow:hidden;
+
+    background:
+        radial-gradient(
+            circle,
+            #242424 0 8%,
+            #111 9% 100%
+        );
+
+    border:3px solid #090909;
+
+    box-shadow:
+        0 5px 18px rgba(0,0,0,.8),
+        inset 0 0 12px rgba(255,255,255,.08);
 
     display:flex;
     align-items:center;
     justify-content:center;
 
-    overflow:hidden;
+    color:#666;
 
     font-size:28px;
-    color:#777;
 
-    border:3px solid #090909;
-
-    box-shadow:
-        0 2px 12px rgba(0,0,0,.85);
-
-    z-index:3;
+    z-index:6;
 }
 
 
@@ -244,7 +268,9 @@ input[type=range]{width:100%;accent-color:white}
 }
 
 
-/* TITIK TENGAH VINYL */
+/* =========================================================
+   CENTER HOLE
+ ========================================================= */
 
 #vinylCenter::after{
 
@@ -255,69 +281,87 @@ input[type=range]{width:100%;accent-color:white}
     width:8px;
     height:8px;
 
-    border-radius:50%;
-
-    background:#111;
-
-    border:1px solid #444;
-
     left:50%;
     top:50%;
 
     transform:translate(-50%,-50%);
 
-    z-index:5;
+    border-radius:50%;
 
+    background:#080808;
+
+    border:1px solid rgba(255,255,255,.25);
+
+    box-shadow:
+        0 0 4px rgba(0,0,0,.9);
+
+    z-index:10;
 }
 
 
 /* =========================================================
    VISUALIZER
-========================================================= */
+ ========================================================= */
 
 #viz{
 
+    width:100%;
+    height:48px;
+
     display:block;
 
-    width:100%;
-    height:65px;
+    margin:2px auto 18px;
 
-    margin:0 auto 12px;
+    border-radius:12px;
 
-    border-radius:14px;
-
-    background:#0c0c0c;
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255,255,255,.025),
+            rgba(255,255,255,.01)
+        );
 
     box-shadow:
-        inset 0 0 18px rgba(0,0,0,.65);
+        inset 0 0 18px rgba(0,0,0,.55);
 
 }
 
 
 /* =========================================================
-   MOBILE
-========================================================= */
+   SMALL SCREEN
+ ========================================================= */
 
 @media(max-width:500px){
 
     #vinylWrap{
-        margin-top:0;
-        margin-bottom:15px;
+        margin-bottom:12px;
     }
 
     .vinyl{
-        width:210px;
-        height:210px;
-    }
-
-    #vinylCenter{
-        width:84px;
-        height:84px;
+        width:72vw;
+        max-width:280px;
     }
 
     #viz{
-        height:58px;
-        margin-bottom:10px;
+        height:44px;
+        margin-bottom:16px;
+    }
+
+}
+
+
+/* =========================================================
+   VERY SMALL SCREEN
+ ========================================================= */
+
+@media(max-width:360px){
+
+    .vinyl{
+        width:68vw;
+    }
+
+    #viz{
+        height:40px;
     }
 
 }
