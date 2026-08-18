@@ -2728,12 +2728,23 @@ async function downloadCobalt(song, button){
 
     if(!response.ok){
 
-      throw new Error(
-        "Cobalt HTTP " +
-        response.status
-      );
+  const errorText =
+    await response.text();
 
-    }
+  console.error(
+    "COBALT ERROR:",
+    response.status,
+    errorText
+  );
+
+  throw new Error(
+    "Cobalt HTTP " +
+    response.status +
+    "\n" +
+    errorText
+  );
+
+}
 
 
     const data =
