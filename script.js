@@ -2636,39 +2636,31 @@ function closeResults(){
    COBALT DOWNLOAD
    BAGIAN UTAMA FITUR DOWNLOAD
 ========================================================= */
-
+/* =========================================================
+   COBALT DOWNLOAD - VERSI COCOK COBALT V11.7.1
+========================================================= */
 async function downloadCobalt(song, button){
 
   if(
-    !song ||
-    !song.videoId
+   !song ||
+   !song.videoId
   ){
-
     return;
-
   }
-
 
   const originalText =
     button
-    ?
+   ?
     button.textContent
     :
     "";
 
-
   try{
 
     if(button){
-
-      button.disabled =
-        true;
-
-      button.textContent =
-        "⏳ Memproses...";
-
+      button.disabled = true;
+      button.textContent = "⏳ Memproses...";
     }
-
 
     const youtubeURL =
       "https://www.youtube.com/watch?v=" +
@@ -2676,377 +2668,119 @@ async function downloadCobalt(song, button){
         song.videoId
       );
 
-
     /*
-       Cobalt API v11+
+       Cobalt API v11.7.1 format terbaru
     */
-
     const response =
       await fetch(
         COBALT_API,
         {
-
-          method:
-            "POST",
-
+          method: "POST",
           headers:{
-
-            "Accept":
-              "application/json",
-
-            "Content-Type":
-              "application/json"
-
+            "Accept": "application/json",
+            "Content-Type": "application/json"
           },
-
-          body:
-            JSON.stringify({
-
-              url:
-                youtubeURL,
-
-              downloadMode:
-                "audio",
-
-              audioFormat:
-                "mp3",
-
-              audioBitrate:
-                "128",
-
-              filenameStyle:
-                "basic",
-
-              disableMetadata:
-                false
-
-            })
-
+          body: JSON.stringify({
+            url: youtubeURL,
+            isAudioOnly: true, // <--- INI YG BARU
+            audioFormat: "mp3",
+            audioQuality: "128", // <--- INI YG BARU
+            filenameStyle: "basic",
+            disableMetadata: false,
+            embedMetadata: true // <--- TAMBAHAN BIAR ADA JUDUL/ARTIST
+          })
         }
       );
-
 
     if(!response.ok){
-
-  const errorText =
-    await response.text();
-
-  console.error(
-    "COBALT ERROR:",
-    response.status,
-    errorText
-  );
-
-  throw new Error(
-    "Cobalt HTTP " +
-    response.status +
-    "\n" +
-    errorText
-  );
-
-}
-
-
-    const data =
-      await response.json();
-
-
-    console.log(
-      "Cobalt response:",
-      data
-    );
-
-
-    if(
-      data.status ===
-      "error"
-    ){
-
-      throw new Error(
-        data.error?.code ||
-        "Cobalt gagal memproses video"
-      );
-
+      const errorText = await response.text();
+      console.error("COBALT ERROR:", response.status, errorText);
+      throw new Error("Cobalt HTTP " + response.status + "\n" + errorText);
     }
 
+    const data = await response.json();
+    console.log("Cobalt response:", data);
 
-    /*
-       Cobalt v11:
-       tunnel / redirect
-    */
-
-    if(
-      data.status !==
-        "tunnel" &&
-      data.status !==
-        "redirect"
-    ){
-
-      throw new Error(
-        "Status Cobalt: " +
-        data.status
-      );
-
+    if(data.status === "error"){
+      throw new Error(data.error?.code || "Cobalt gagal memproses video");
     }
 
+    if(data.status!== "tunnel" && data.status!== "redirect"){
+      throw new Error("Status Cobalt: " + data.status);
+    }
 
     if(!data.url){
-
-      throw new Error(
-        "URL hasil download tidak ditemukan"
-      );
-
+      throw new Error("URL hasil download tidak ditemukan");
     }
-
 
     if(button){
-
-      button.textContent =
-        "⬇ Mengambil MP3...";
-
+      button.textContent = "⬇ Mengambil MP3...";
     }
 
-
-    /*
-       Ambil file sebagai Blob.
-
-       Jika Cobalt mengembalikan
-       tunnel URL, browser dapat
-       mengambil file tersebut.
-    */
-
-    const fileResponse =
-      await fetch(
-        data.url
-      );
-
-
+    const fileResponse = await fetch(data.url);
     if(!fileResponse.ok){
-
-      throw new Error(
-        "Gagal mengambil file MP3 (" +
-        fileResponse.status +
-        ")"
-      );
-
+      throw new Error("Gagal mengambil file MP3 (" + fileResponse.status + ")");
     }
 
-
-    const blob =
-      await fileResponse.blob();
-
-
-    if(
-      !blob ||
-      !blob.size
-    ){
-
-      throw new Error(
-        "File MP3 kosong"
-      );
-
+    const blob = await fileResponse.blob();
+    if(!blob ||!blob.size){
+      throw new Error("File MP3 kosong");
     }
-
-
-    /*
-       Pastikan MIME type.
-    */
 
     const mp3Blob =
-      blob.type ===
-        "audio/mpeg"
-      ?
+      blob.type === "audio/mpeg"
+     ?
       blob
       :
-      new Blob(
-        [blob],
-        {
-          type:
-            "audio/mpeg"
-        }
-      );
-
-
-    /*
-       Simpan sebagai lagu LOCAL.
-       Dengan begitu:
-
-       - IndexedDB
-       - offline
-       - background playback
-       - lock screen
-       - Media Session
-
-       tetap menggunakan sistem
-       lokal yang sudah ada.
-    */
+      new Blob([blob], {type: "audio/mpeg"});
 
     const downloadedSong = {
-
-      id:
-        "cobalt_" +
-        song.videoId,
-
-      type:
-        "local",
-
-      source:
-        "cobalt",
-
-      videoId:
-        song.videoId,
-
-      title:
-        song.title,
-
-      artist:
-        song.artist,
-
-      thumb:
-        song.thumb,
-
-      blob:
-        mp3Blob,
-
-      duration:
-        song.duration || 0
-
+      id: "cobalt_" + song.videoId,
+      type: "local",
+      source: "cobalt",
+      videoId: song.videoId,
+      title: song.title,
+      artist: song.artist,
+      thumb: song.thumb,
+      blob: mp3Blob,
+      duration: song.duration || 0
     };
 
-
-    /*
-       Jika sudah pernah didownload,
-       put() akan mengganti file lama.
-    */
-
-    await saveSong(
-      downloadedSong
-    );
-
-
-    /*
-       Refresh library.
-    */
-
-    songs =
-      await getSongs();
-
-
+    await saveSong(downloadedSong);
+    songs = await getSongs();
     render();
 
-
-    /*
-       Beri tahu user.
-    */
-
     if(button){
-
-      button.textContent =
-        "✓ Tersimpan";
-
+      button.textContent = "✓ Tersimpan";
     }
-
-
     if($("status")){
-
-      $("status").textContent =
-        "MP3 tersimpan di Library";
-
+      $("status").textContent = "MP3 tersimpan di Library";
     }
-
-
-    /*
-       Jangan langsung memainkan.
-       User tetap menentukan apakah
-       mau Play atau tidak.
-    */
-
     return downloadedSong;
 
-
   }catch(error){
-
-    console.error(
-      "Cobalt download error:",
-      error
-    );
-
-
+    console.error("Cobalt download error:", error);
     if(button){
-
-      button.textContent =
-        "❌ Gagal";
-
+      button.textContent = "❌ Gagal";
     }
-
-
     if($("status")){
-
-      $("status").textContent =
-        "Download gagal";
-
+      $("status").textContent = "Download gagal";
     }
-
-
-    alert(
-      "Download gagal:\n\n" +
-      error.message
-    );
-
-
+    alert("Download gagal:\n\n" + error.message);
     return null;
-
-
   }finally{
-
     if(button){
-
-      setTimeout(
-        () => {
-
-          if(
-            button &&
-            document.body.contains(
-              button
-            )
-          ){
-
-            button.disabled =
-              false;
-
-
-            /*
-               Jangan mengembalikan
-               teks jika sudah sukses.
-            */
-
-            if(
-              button.textContent ===
-              "⏳ Memproses..." ||
-              button.textContent ===
-              "⬇ Mengambil MP3..." ||
-              button.textContent ===
-              "❌ Gagal"
-            ){
-
-              button.textContent =
-                originalText ||
-                "⬇ Download";
-
-            }
-
+      setTimeout(() => {
+        if(button && document.body.contains(button)){
+          button.disabled = false;
+          if(button.textContent === "⏳ Memproses..." || button.textContent === "⬇ Mengambil MP3..." || button.textContent === "❌ Gagal"){
+            button.textContent = originalText || "⬇ Download";
           }
-
-        },
-        2500
-      );
-
+        }
+      }, 2500);
     }
-
   }
-
 }
-
 
 /* =========================================================
    SHOW YOUTUBE RESULTS
