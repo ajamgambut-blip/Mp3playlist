@@ -767,8 +767,8 @@ openDB().then(async()=>{
 });
 
 /* =========================================================
-   MYMUSIC — VINYL + VISUALIZER
-   Tambahan — tidak mengganti sistem player utama
+   MYMUSIC — PREMIUM VINYL + VISUALIZER
+   Cocok dengan app.js MyMusic saat ini
 ========================================================= */
 
 (function(){
@@ -780,26 +780,30 @@ openDB().then(async()=>{
 
 
   /* =====================================================
-     BUAT VINYL
+     1. BUAT VINYL + VISUALIZER
   ===================================================== */
 
-  coverEl.insertAdjacentHTML("beforebegin",`
+  if(!document.getElementById("vinylWrap")){
 
-    <div id="vinylWrap">
+    coverEl.insertAdjacentHTML("beforebegin",`
 
-      <div class="vinyl" id="vinyl">
+      <div id="vinylWrap">
 
-        <div id="vinylCenter">
-          ♪
+        <div class="vinyl" id="vinyl">
+
+          <div id="vinylCenter">
+            ♪
+          </div>
+
         </div>
 
       </div>
 
-    </div>
+      <canvas id="viz"></canvas>
 
-    <canvas id="viz"></canvas>
+    `);
 
-  `);
+  }
 
 
   const vinyl =
@@ -816,26 +820,42 @@ openDB().then(async()=>{
 
 
   /* =====================================================
-     VINYL COVER
+     2. UPDATE COVER VINYL
   ===================================================== */
 
-  function updateVinylCover(){
+  function setVinylCover(src){
+
+    if(!src){
+
+      vinylCenter.innerHTML="♪";
+
+      return;
+    }
+
+    vinylCenter.innerHTML=`
+
+      <img
+        src="${src}"
+        alt=""
+      >
+
+    `;
+
+  }
+
+
+  /* =====================================================
+     3. COVER DARI PLAYER
+  ===================================================== */
+
+  function updateVinylFromCover(){
 
     const img =
       coverEl.querySelector("img");
 
     if(img && img.src){
 
-      vinylCenter.innerHTML = `
-        <img
-          src="${img.src}"
-          alt=""
-        >
-      `;
-
-    }else{
-
-      vinylCenter.innerHTML = "♪";
+      setVinylCover(img.src);
 
     }
 
@@ -843,13 +863,13 @@ openDB().then(async()=>{
 
 
   /* =====================================================
-     PERHATIKAN PERUBAHAN COVER
+     4. PANTAU PERUBAHAN COVER
   ===================================================== */
 
   const coverObserver =
     new MutationObserver(()=>{
 
-      updateVinylCover();
+      updateVinylFromCover();
 
     });
 
@@ -865,17 +885,14 @@ openDB().then(async()=>{
   );
 
 
-  updateVinylCover();
-
-
   /* =====================================================
-     AUDIO VISUALIZER
+     5. AUDIO CONTEXT
   ===================================================== */
 
-  let audioContext = null;
-  let analyser = null;
-  let source = null;
-  let dataArray = null;
+  let audioContext=null;
+  let analyser=null;
+  let sourceNode=null;
+  let dataArray=null;
 
 
   function initVisualizer(){
@@ -896,26 +913,27 @@ openDB().then(async()=>{
         audioContext.createAnalyser();
 
 
-      analyser.fftSize = 128;
+      analyser.fftSize=128;
 
 
-      analyser.smoothingTimeConstant =
-        0.82;
+      analyser.smoothingTimeConstant=.85;
 
 
       /*
        * PENTING:
-       * createMediaElementSource hanya
-       * dibuat SATU KALI.
+       * Hanya dibuat satu kali.
        */
 
-      source =
+      sourceNode =
         audioContext.createMediaElementSource(
           audioEl
         );
 
 
-      source.connect(analyser);
+      sourceNode.connect(
+        analyser
+      );
+
 
       analyser.connect(
         audioContext.destination
@@ -928,11 +946,11 @@ openDB().then(async()=>{
         );
 
 
-    }catch(error){
+    }catch(err){
 
       console.warn(
-        "Visualizer error:",
-        error
+        "Visualizer gagal:",
+        err
       );
 
     }
@@ -941,23 +959,25 @@ openDB().then(async()=>{
 
 
   /* =====================================================
-     CANVAS RESPONSIVE
+     6. CANVAS RESPONSIVE
   ===================================================== */
 
-  function resizeCanvas(){
+  function resizeVisualizer(){
 
     const rect =
       canvas.getBoundingClientRect();
+
 
     const dpr =
       window.devicePixelRatio || 1;
 
 
     canvas.width =
-      rect.width * dpr;
+      rect.width*dpr;
+
 
     canvas.height =
-      rect.height * dpr;
+      rect.height*dpr;
 
 
     ctx.setTransform(
@@ -972,28 +992,27 @@ openDB().then(async()=>{
   }
 
 
-  resizeCanvas();
+  resizeVisualizer();
 
 
   window.addEventListener(
     "resize",
-    resizeCanvas
+    resizeVisualizer
   );
 
 
   /* =====================================================
-     DRAW VISUALIZER
+     7. VISUALIZER
   ===================================================== */
 
-  function drawVisualizer(){
+  function draw(){
 
-    requestAnimationFrame(
-      drawVisualizer
-    );
+    requestAnimationFrame(draw);
 
 
     const width =
       canvas.clientWidth;
+
 
     const height =
       canvas.clientHeight;
@@ -1011,8 +1030,7 @@ openDB().then(async()=>{
      * Background
      */
 
-    ctx.fillStyle =
-      "#090909";
+    ctx.fillStyle="#0b0b0b";
 
     ctx.fillRect(
       0,
@@ -1022,9 +1040,16 @@ openDB().then(async()=>{
     );
 
 
+    /* ================================================
+       BELUM ADA AUDIO
+    ================================================ */
+
     if(!analyser){
 
-      drawIdle();
+      drawIdle(
+        width,
+        height
+      );
 
       return;
 
@@ -1036,47 +1061,49 @@ openDB().then(async()=>{
     );
 
 
-    const count =
+    const bars =
       dataArray.length;
 
 
-    const barWidth =
-      width / count;
+    const gap=2;
 
+
+    const barWidth =
+      width/bars;
+
+
+    /* ================================================
+       BAR
+    ================================================ */
 
     for(
       let i=0;
-      i<count;
+      i<bars;
       i++
     ){
 
-      let value =
-        dataArray[i] / 255;
+      const value =
+        dataArray[i]/255;
 
-
-      /*
-       * Supaya visualizer
-       * tidak terlalu tinggi
-       */
 
       let barHeight =
-        value * height * 0.9;
+        value*height*.88;
 
 
-      if(barHeight < 2)
-        barHeight = 2;
+      if(barHeight<2)
+        barHeight=2;
 
 
       const x =
-        i * barWidth;
+        i*barWidth;
 
 
       const y =
-        height - barHeight;
+        height-barHeight;
 
 
       /*
-       * Gradient putih → abu
+       * Gradient elegan
        */
 
       const gradient =
@@ -1090,32 +1117,57 @@ openDB().then(async()=>{
 
       gradient.addColorStop(
         0,
-        "#ffffff"
+        "#777"
       );
 
 
       gradient.addColorStop(
-        0.55,
-        "#bdbdbd"
+        .5,
+        "#ddd"
       );
 
 
       gradient.addColorStop(
         1,
-        "#555555"
+        "#fff"
       );
 
 
-      ctx.fillStyle =
+      ctx.fillStyle=
         gradient;
 
 
-      ctx.fillRect(
-        x + 1,
+      /*
+       * Rounded top
+       */
+
+      const w =
+        Math.max(
+          1,
+          barWidth-gap
+        );
+
+
+      const radius =
+        Math.min(
+          3,
+          w/2
+        );
+
+
+      ctx.beginPath();
+
+
+      ctx.roundRect(
+        x,
         y,
-        Math.max(1,barWidth - 2),
-        barHeight
+        w,
+        barHeight,
+        radius
       );
+
+
+      ctx.fill();
 
     }
 
@@ -1123,22 +1175,15 @@ openDB().then(async()=>{
 
 
   /* =====================================================
-     IDLE VISUALIZER
+     8. IDLE VISUALIZER
   ===================================================== */
 
-  function drawIdle(){
+  function drawIdle(width,height){
 
-    const width =
-      canvas.clientWidth;
-
-    const height =
-      canvas.clientHeight;
-
-
-    const bars = 48;
+    const bars=52;
 
     const barWidth =
-      width / bars;
+      width/bars;
 
 
     for(
@@ -1147,31 +1192,25 @@ openDB().then(async()=>{
       i++
     ){
 
-      /*
-       * Gelombang kecil
-       */
-
-      const wave =
-        3 +
+      const h =
+        2+
         Math.abs(
-          Math.sin(
-            i * 0.7
-          )
-        ) * 3;
+          Math.sin(i*.65)
+        )*3;
 
 
-      ctx.fillStyle =
-        "#333";
+      ctx.fillStyle=
+        "rgba(255,255,255,.16)";
 
 
       ctx.fillRect(
-        i * barWidth,
-        height - wave,
+        i*barWidth,
+        height-h,
         Math.max(
           1,
-          barWidth - 2
+          barWidth-2
         ),
-        wave
+        h
       );
 
     }
@@ -1179,20 +1218,19 @@ openDB().then(async()=>{
   }
 
 
-  drawVisualizer();
+  draw();
 
 
   /* =====================================================
-     AUDIO PLAY
+     9. LOCAL AUDIO PLAY
   ===================================================== */
 
   audioEl.addEventListener(
     "play",
-    async ()=>{
+    async()=>{
 
       /*
-       * Aktifkan analyser hanya
-       * untuk audio lokal.
+       * Pastikan visualizer aktif
        */
 
       initVisualizer();
@@ -1200,8 +1238,7 @@ openDB().then(async()=>{
 
       if(
         audioContext &&
-        audioContext.state ===
-        "suspended"
+        audioContext.state==="suspended"
       ){
 
         try{
@@ -1213,6 +1250,10 @@ openDB().then(async()=>{
       }
 
 
+      /*
+       * Putar vinyl
+       */
+
       vinyl.classList.add(
         "playing"
       );
@@ -1222,7 +1263,7 @@ openDB().then(async()=>{
 
 
   /* =====================================================
-     AUDIO PAUSE
+     10. LOCAL AUDIO PAUSE
   ===================================================== */
 
   audioEl.addEventListener(
@@ -1238,7 +1279,7 @@ openDB().then(async()=>{
 
 
   /* =====================================================
-     AUDIO ENDED
+     11. LOCAL AUDIO END
   ===================================================== */
 
   audioEl.addEventListener(
@@ -1254,20 +1295,88 @@ openDB().then(async()=>{
 
 
   /* =====================================================
-     KETIKA YOUTUBE DIPUTAR
+     12. HOOK playSong
      
-     Karena YouTube memakai iframe,
-     kita hentikan putaran vinyl lokal.
+     Tujuannya agar cover vinyl langsung
+     mengikuti lagu yang dipilih.
+  ===================================================== */
+
+  const originalPlaySong =
+    window.playSong;
+
+
+  if(
+    typeof originalPlaySong==="function"
+  ){
+
+    window.playSong =
+      function(i){
+
+        const song =
+          window.songs?.[i];
+
+
+        if(song){
+
+          if(song.thumb){
+
+            setVinylCover(
+              song.thumb
+            );
+
+          }else{
+
+            setVinylCover(null);
+
+          }
+
+        }
+
+
+        return originalPlaySong.apply(
+          this,
+          arguments
+        );
+
+      };
+
+  }
+
+
+  /* =====================================================
+     13. HOOK playYT
+     
+     YouTube tidak masuk ke AudioContext,
+     tetapi vinyl tetap menampilkan cover.
   ===================================================== */
 
   const originalPlayYT =
     window.playYT;
 
 
-  if(typeof originalPlayYT === "function"){
+  if(
+    typeof originalPlayYT==="function"
+  ){
 
     window.playYT =
       function(song){
+
+        /*
+         * Cover YouTube
+         */
+
+        if(song && song.thumb){
+
+          setVinylCover(
+            song.thumb
+          );
+
+        }
+
+
+        /*
+         * Audio lokal harus berhenti
+         */
 
         vinyl.classList.remove(
           "playing"
@@ -1285,47 +1394,70 @@ openDB().then(async()=>{
 
 
   /* =====================================================
-     COVER DARI SONG YOUTUBE
+     14. SINKRONISASI YOUTUBE
   ===================================================== */
 
-  const originalPlaySong =
-    window.playSong;
+  function syncYouTube(){
+
+    if(
+      typeof yt==="undefined" ||
+      !yt ||
+      typeof yt.getPlayerState!=="function"
+    ){
+
+      return;
+
+    }
 
 
-  if(typeof originalPlaySong === "function"){
+    try{
 
-    window.playSong =
-      function(i){
-
-        const song =
-          window.songs &&
-          window.songs[i];
+      const state =
+        yt.getPlayerState();
 
 
-        if(song && song.thumb){
+      if(
+        state ===
+        YT.PlayerState.PLAYING
+      ){
 
-          vinylCenter.innerHTML = `
-            <img
-              src="${song.thumb}"
-              alt=""
-            >
-          `;
-
-        }else{
-
-          vinylCenter.innerHTML =
-            "♪";
-
-        }
-
-
-        return originalPlaySong.apply(
-          this,
-          arguments
+        vinyl.classList.add(
+          "playing"
         );
 
-      };
+
+      }else{
+
+        vinyl.classList.remove(
+          "playing"
+        );
+
+      }
+
+    }catch(e){}
 
   }
+
+
+  /*
+   * Cek YouTube setiap 250ms.
+   *
+   * Vinyl tetap berputar ketika YouTube
+   * sedang playing, tetapi visualizer
+   * tetap hanya membaca audio lokal.
+   */
+
+  setInterval(
+    syncYouTube,
+    250
+  );
+
+
+  /* =====================================================
+     15. COVER AWAL
+  ===================================================== */
+
+  updateVinylFromCover();
+
 
 })();
