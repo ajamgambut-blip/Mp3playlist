@@ -1,346 +1,1255 @@
+/* =========================================================
+   MYMUSIC — APP.JS
+   Premium Vinyl + Visualizer
+   YouTube + Local Music + IndexedDB
+========================================================= */
+
 const YOUTUBE_API_KEY="AIzaSyCuRrZuamgjKNLBCN_tfTdfmLJsuuno78c";
 
 const $=id=>document.getElementById(id);
+
 const audio=$("audio");
 const playlist=$("playlist");
 
-let songs=[],current=-1,yt=null,ytReady=false;
-let pending=null,shuffle=false,repeat=false,url=null;
+let songs=[];
+let current=-1;
+
+let yt=null;
+let ytReady=false;
+
+let pending=null;
+
+let shuffle=false;
+let repeat=false;
+
+let url=null;
 let ytTimer=null;
+
+
+/* =========================================================
+   DATABASE
+========================================================= */
 
 const DB="MyMusicDB";
 const VERSION=2;
 
 let db;
 
-/* DATABASE */
 
 function openDB(){
+
  return new Promise((resolve,reject)=>{
-  const r=indexedDB.open(DB,VERSION);
+
+  const r=
+    indexedDB.open(DB,VERSION);
+
 
   r.onupgradeneeded=e=>{
+
    const d=e.target.result;
 
-   if(!d.objectStoreNames.contains("songs"))
-    d.createObjectStore("songs",{keyPath:"id"});
 
-   if(!d.objectStoreNames.contains("searchCache"))
-    d.createObjectStore("searchCache",{keyPath:"key"});
+   if(
+    !d.objectStoreNames.contains("songs")
+   ){
+
+    d.createObjectStore(
+     "songs",
+     {keyPath:"id"}
+    );
+
+   }
+
+
+   if(
+    !d.objectStoreNames.contains("searchCache")
+   ){
+
+    d.createObjectStore(
+     "searchCache",
+     {keyPath:"key"}
+    );
+
+   }
+
   };
+
 
   r.onsuccess=e=>{
+
    db=e.target.result;
+
    resolve();
+
   };
 
+
   r.onerror=()=>reject(r.error);
+
  });
 
 }
+
 
 function getSongs(){
- return new Promise(resolve=>{
-  const r=db.transaction("songs")
-   .objectStore("songs").getAll();
 
-  r.onsuccess=()=>resolve(r.result||[]);
+ return new Promise(resolve=>{
+
+  const r=
+    db.transaction("songs")
+      .objectStore("songs")
+      .getAll();
+
+
+  r.onsuccess=()=>
+    resolve(r.result||[]);
+
  });
 
 }
+
 
 function saveSong(x){
+
  return new Promise(resolve=>{
-  const t=db.transaction("songs","readwrite");
-  t.objectStore("songs").put(x);
+
+  const t=
+    db.transaction(
+     "songs",
+     "readwrite"
+    );
+
+
+  t.objectStore("songs")
+   .put(x);
+
+
   t.oncomplete=resolve;
+
  });
+
 }
+
 
 function removeSong(id){
+
  return new Promise(resolve=>{
-  const t=db.transaction("songs","readwrite");
-  t.objectStore("songs").delete(id);
+
+  const t=
+    db.transaction(
+     "songs",
+     "readwrite"
+    );
+
+
+  t.objectStore("songs")
+   .delete(id);
+
+
   t.oncomplete=resolve;
+
  });
+
 }
 
 
-/* HELPERS */
+/* =========================================================
+   HELPERS
+========================================================= */
 
 function time(s){
- if(!isFinite(s)||s<0)return"0:00";
+
+ if(!isFinite(s)||s<0)
+  return "0:00";
+
 
  return Math.floor(s/60)+":"+
- String(Math.floor(s%60)).padStart(2,"0");
+   String(
+    Math.floor(s%60)
+   ).padStart(2,"0");
+
 }
+
 
 function esc(x){
- return String(x||"").replace(/[&<>"']/g,m=>({
-  "&":"&amp;",
-  "<":"&lt;",
-  ">":"&gt;",
-  '"':"&quot;",
-  "'":"&#039;"
- }[m]));
+
+ return String(x||"")
+  .replace(
+   /[&<>"']/g,
+   m=>({
+
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#039;"
+
+   }[m])
+  );
+
 }
 
 
-/* LIBRARY */
+/* =========================================================
+   VINYL SYSTEM
+========================================================= */
+
+let vinyl=null;
+let vinylCenter=null;
+
+let canvas=null;
+let ctx=null;
+
+let audioContext=null;
+let analyser=null;
+let audioSource=null;
+let dataArray=null;
+
+let visualizerStarted=false;
+
+
+function initVinyl(){
+
+ if(vinyl)
+  return;
+
+
+ const cover=
+   $("cover");
+
+
+ if(!cover)
+  return;
+
+
+ cover.insertAdjacentHTML(
+  "beforebegin",
+  `
+
+  <div id="vinylWrap">
+
+    <div class="vinyl" id="vinyl">
+
+      <div id="vinylCenter">
+        ♪
+      </div>
+
+    </div>
+
+  </div>
+
+  <canvas id="viz"></canvas>
+
+  `
+ );
+
+
+ vinyl=
+   $("vinyl");
+
+
+ vinylCenter=
+   $("vinylCenter");
+
+
+ canvas=
+   $("viz");
+
+
+ ctx=
+   canvas.getContext("2d");
+
+
+ resizeVisualizer();
+
+
+ window.addEventListener(
+  "resize",
+  resizeVisualizer
+ );
+
+
+ drawVisualizer();
+
+}
+
+
+/* =========================================================
+   VINYL COVER
+========================================================= */
+
+function updateVinylCover(song){
+
+ if(!vinylCenter)
+  return;
+
+
+ if(song && song.thumb){
+
+  vinylCenter.innerHTML=`
+
+   <img
+    src="${esc(song.thumb)}"
+    alt=""
+   >
+
+  `;
+
+  return;
+
+ }
+
+
+ const cover=
+   $("cover");
+
+
+ const img=
+   cover?.querySelector("img");
+
+
+ if(img && img.src){
+
+  vinylCenter.innerHTML=`
+
+   <img
+    src="${img.src}"
+    alt=""
+   >
+
+  `;
+
+ }else{
+
+  vinylCenter.innerHTML="♪";
+
+ }
+
+}
+
+
+/* =========================================================
+   VINYL PLAY / PAUSE
+========================================================= */
+
+function vinylPlay(){
+
+ if(vinyl)
+  vinyl.classList.add("playing");
+
+}
+
+
+function vinylPause(){
+
+ if(vinyl)
+  vinyl.classList.remove("playing");
+
+}
+
+
+/* =========================================================
+   VISUALIZER INIT
+========================================================= */
+
+function initVisualizer(){
+
+ if(audioContext)
+  return;
+
+
+ try{
+
+  audioContext=
+   new(
+    window.AudioContext ||
+    window.webkitAudioContext
+   )();
+
+
+  analyser=
+   audioContext.createAnalyser();
+
+
+  analyser.fftSize=128;
+
+
+  analyser.smoothingTimeConstant=.85;
+
+
+  /*
+   * HANYA SEKALI untuk audio element
+   */
+
+  audioSource=
+   audioContext.createMediaElementSource(
+    audio
+   );
+
+
+  audioSource.connect(
+   analyser
+  );
+
+
+  analyser.connect(
+   audioContext.destination
+  );
+
+
+  dataArray=
+   new Uint8Array(
+    analyser.frequencyBinCount
+   );
+
+
+ }catch(e){
+
+  console.warn(
+   "Visualizer tidak tersedia:",
+   e
+  );
+
+ }
+
+}
+
+
+/* =========================================================
+   RESIZE VISUALIZER
+========================================================= */
+
+function resizeVisualizer(){
+
+ if(!canvas)
+  return;
+
+
+ const rect=
+   canvas.getBoundingClientRect();
+
+
+ const dpr=
+   window.devicePixelRatio||1;
+
+
+ canvas.width=
+   rect.width*dpr;
+
+
+ canvas.height=
+   rect.height*dpr;
+
+
+ ctx.setTransform(
+  dpr,
+  0,
+  0,
+  dpr,
+  0,
+  0
+ );
+
+}
+
+
+/* =========================================================
+   VISUALIZER DRAW
+========================================================= */
+
+function drawVisualizer(){
+
+ if(!canvas)
+  return;
+
+
+ requestAnimationFrame(
+  drawVisualizer
+ );
+
+
+ const width=
+   canvas.clientWidth;
+
+
+ const height=
+   canvas.clientHeight;
+
+
+ ctx.clearRect(
+  0,
+  0,
+  width,
+  height
+ );
+
+
+ /*
+  * Background
+  */
+
+ ctx.fillStyle="#0b0b0b";
+
+ ctx.fillRect(
+  0,
+  0,
+  width,
+  height
+ );
+
+
+ /*
+  * LOCAL AUDIO
+  */
+
+ if(
+  analyser &&
+  !audio.paused &&
+  audio.duration
+ ){
+
+  analyser.getByteFrequencyData(
+   dataArray
+  );
+
+
+  const bars=
+    dataArray.length;
+
+
+  const barWidth=
+    width/bars;
+
+
+  for(
+   let i=0;
+   i<bars;
+   i++
+  ){
+
+   const value=
+     dataArray[i]/255;
+
+
+   let barHeight=
+     value*height*.9;
+
+
+   if(barHeight<2)
+    barHeight=2;
+
+
+   const x=
+     i*barWidth;
+
+
+   const y=
+     height-barHeight;
+
+
+   const gradient=
+     ctx.createLinearGradient(
+      0,
+      height,
+      0,
+      0
+     );
+
+
+   gradient.addColorStop(
+    0,
+    "#777"
+   );
+
+
+   gradient.addColorStop(
+    .55,
+    "#ddd"
+   );
+
+
+   gradient.addColorStop(
+    1,
+    "#fff"
+   );
+
+
+   ctx.fillStyle=
+     gradient;
+
+
+   ctx.beginPath();
+
+
+   ctx.roundRect(
+    x,
+    y,
+    Math.max(
+     1,
+     barWidth-2
+    ),
+    barHeight,
+    3
+   );
+
+
+   ctx.fill();
+
+  }
+
+
+  return;
+
+ }
+
+
+ /*
+  * IDLE / YOUTUBE
+  */
+
+ drawIdleVisualizer(
+  width,
+  height
+ );
+
+}
+
+
+/* =========================================================
+   IDLE VISUALIZER
+========================================================= */
+
+function drawIdleVisualizer(
+ width,
+ height
+){
+
+ const bars=52;
+
+ const barWidth=
+   width/bars;
+
+
+ for(
+  let i=0;
+  i<bars;
+  i++
+ ){
+
+  const h=
+   2+
+   Math.abs(
+    Math.sin(
+     i*.65+
+     Date.now()/1500
+    )
+   )*3;
+
+
+  ctx.fillStyle=
+   "rgba(255,255,255,.15)";
+
+
+  ctx.fillRect(
+   i*barWidth,
+   height-h,
+   Math.max(
+    1,
+    barWidth-2
+   ),
+   h
+  );
+
+ }
+
+}
+
+
+/* =========================================================
+   LIBRARY
+========================================================= */
 
 function render(){
 
  playlist.innerHTML="";
- $("count").textContent=songs.length+" lagu";
+
+ $("count").textContent=
+   songs.length+" lagu";
+
 
  if(!songs.length){
+
   playlist.innerHTML=
    '<div class="empty">Belum ada musik</div>';
+
   return;
+
  }
+
 
  songs.forEach((s,i)=>{
 
-  const d=document.createElement("div");
+  const d=
+   document.createElement("div");
+
 
   d.className=
-   "song"+(i===current?" current":"");
+   "song"+
+   (i===current?" current":"");
+
 
   d.innerHTML=`
+
    <div class="sc">
-    ${s.thumb?
-     `<img src="${s.thumb}">`:"♪"}
+
+    ${
+     s.thumb?
+     `<img src="${esc(s.thumb)}">`
+     :"♪"
+    }
+
    </div>
+
 
    <div class="si">
-    <b>${esc(s.title)}</b>
+
+    <b>
+     ${esc(s.title)}
+    </b>
+
 
     <small>
-     ${s.type==="yt"?"▶ YouTube":"📁 Lokal"}
-     · ${esc(s.artist)}
-     ${s.duration?
-      " · "+time(s.duration):""}
+
+     ${
+      s.type==="yt"
+      ?"▶ YouTube"
+      :"📁 Lokal"
+     }
+
+     ·
+
+     ${esc(s.artist)}
+
+     ${
+      s.duration
+      ?" · "+time(s.duration)
+      :""
+     }
+
     </small>
+
    </div>
 
-   <button class="del">×</button>
+
+   <button class="del">
+    ×
+   </button>
+
   `;
 
+
   d.onclick=e=>{
-   if(e.target.closest(".del"))return;
+
+   if(
+    e.target.closest(".del")
+   )
+    return;
+
+
    playSong(i);
+
   };
 
-  d.querySelector(".del").onclick=async e=>{
-   e.stopPropagation();
 
-   await removeSong(s.id);
-   songs=await getSongs();
+  d.querySelector(
+   ".del"
+  ).onclick=
+   async e=>{
 
-   render();
-  };
+    e.stopPropagation();
+
+
+    if(
+     current>=0 &&
+     songs[current]?.id===s.id
+    ){
+
+     audio.pause();
+
+     stopYT();
+
+     vinylPause();
+
+    }
+
+
+    await removeSong(
+     s.id
+    );
+
+
+    songs=
+     await getSongs();
+
+
+    if(
+     current>=songs.length
+    ){
+
+     current=
+      songs.length-1;
+
+    }
+
+
+    render();
+
+   };
+
 
   playlist.appendChild(d);
+
  });
+
 }
 
 
-/* PLAY */
+/* =========================================================
+   PLAY SONG
+========================================================= */
 
 function playSong(i){
 
- if(!songs[i])return;
+ if(!songs[i])
+  return;
+
 
  current=i;
 
- const s=songs[i];
+
+ const s=
+   songs[i];
+
 
  render();
 
- $("title").textContent=s.title;
- $("artist").textContent=s.artist;
+
+ $("title").textContent=
+   s.title;
+
+
+ $("artist").textContent=
+   s.artist;
+
+
+ /*
+  * UPDATE VINYL
+  */
+
+ updateVinylCover(s);
+
+
+ /* ================================================
+    YOUTUBE
+ ================================================= */
 
  if(s.type==="yt"){
 
   audio.pause();
+
   playYT(s);
 
- }else{
+  return;
 
-  stopYT();
-
-  if(url)URL.revokeObjectURL(url);
-
-  url=URL.createObjectURL(s.blob);
-
-  audio.src=url;
-
-  $("cover").innerHTML="♪";
-  $("status").textContent="Local Music";
-
-  $("bar").value=0;
-  $("cur").textContent="0:00";
-
-  audio.play().catch(()=>{});
  }
+
+
+ /* ================================================
+    LOCAL
+ ================================================= */
+
+ stopYT();
+
+
+ vinylPause();
+
+
+ if(url){
+
+  URL.revokeObjectURL(
+   url
+  );
+
+  url=null;
+
+ }
+
+
+ url=
+   URL.createObjectURL(
+    s.blob
+   );
+
+
+ audio.src=url;
+
+
+ $("cover").innerHTML="♪";
+
+
+ $("status").textContent=
+   "Local Music";
+
+
+ $("bar").value=0;
+
+
+ $("cur").textContent=
+   "0:00";
+
+
+ audio.play().catch(
+  ()=>{}
+ );
+
 }
 
 
-/* LOCAL */
+/* =========================================================
+   LOCAL AUDIO
+========================================================= */
 
 audio.onloadedmetadata=()=>{
- $("dur").textContent=time(audio.duration);
+
+ $("dur").textContent=
+   time(audio.duration);
+
 };
+
 
 audio.ontimeupdate=()=>{
 
- if(!audio.duration)return;
+ if(!audio.duration)
+  return;
+
 
  $("bar").value=
-  audio.currentTime/audio.duration*100;
+   audio.currentTime/
+   audio.duration*
+   100;
+
 
  $("cur").textContent=
-  time(audio.currentTime);
+   time(
+    audio.currentTime
+   );
+
 };
 
-audio.onplay=()=>{
+
+audio.onplay=async()=>{
+
  $("play").textContent="⏸";
+
+
+ vinylPlay();
+
+
+ /*
+  * Visualizer hanya untuk
+  * audio lokal.
+  */
+
+ initVisualizer();
+
+
+ if(
+  audioContext &&
+  audioContext.state==="suspended"
+ ){
+
+  try{
+
+   await audioContext.resume();
+
+  }catch(e){}
+
+ }
+
 };
+
 
 audio.onpause=()=>{
+
  $("play").textContent="▶";
+
+ vinylPause();
+
 };
+
 
 audio.onended=nextSong;
 
 
-/* YOUTUBE */
+/* =========================================================
+   YOUTUBE API
+========================================================= */
 
 window.onYouTubeIframeAPIReady=()=>{
 
  ytReady=true;
 
+
  if(pending){
-  createYT(pending);
+
+  createYT(
+   pending
+  );
+
+
   pending=null;
+
  }
+
 };
+
 
 function playYT(song){
 
- $("title").textContent=song.title;
- $("artist").textContent=song.artist;
- $("status").textContent="YouTube Online";
+ $("title").textContent=
+   song.title;
+
+
+ $("artist").textContent=
+   song.artist;
+
+
+ $("status").textContent=
+   "YouTube Online";
+
+
+ updateVinylCover(
+  song
+ );
+
 
  $("cover").innerHTML=
   song.thumb?
-  `<img src="${song.thumb}">`:"▶";
+  `<img src="${esc(song.thumb)}">`
+  :"▶";
 
- $("cur").textContent="0:00";
- $("dur").textContent="0:00";
+
+ $("cur").textContent=
+   "0:00";
+
+
+ $("dur").textContent=
+   "0:00";
+
+
  $("bar").value=0;
 
+
  if(!ytReady){
+
   pending=song;
+
   return;
+
  }
+
 
  if(yt){
 
-  yt.loadVideoById(song.videoId);
+  yt.loadVideoById(
+   song.videoId
+  );
 
  }else{
 
-  createYT(song);
+  createYT(
+   song
+  );
+
  }
+
 }
+
+
+/* =========================================================
+   CREATE YOUTUBE
+========================================================= */
 
 function createYT(song){
 
- yt=new YT.Player("youtubePlayer",{
+ yt=
+  new YT.Player(
+   "youtubePlayer",
+   {
 
-  width:"1",
-  height:"1",
+    width:"1",
+    height:"1",
 
-  videoId:song.videoId,
+    videoId:
+     song.videoId,
 
-  playerVars:{
-   autoplay:1,
-   playsinline:1,
-   controls:0,
-   rel:0
-  },
 
-  events:{
+    playerVars:{
+     autoplay:1,
+     playsinline:1,
+     controls:0,
+     rel:0
+    },
 
-   onReady:e=>{
-    e.target.playVideo();
-    startYTTimer();
-   },
 
-   onStateChange:e=>{
+    events:{
 
-    if(e.data===YT.PlayerState.PLAYING){
+     onReady:e=>{
 
-     $("play").textContent="⏸";
-     startYTTimer();
+      e.target.playVideo();
 
-    }else if(e.data===YT.PlayerState.PAUSED){
+      startYTTimer();
 
-     $("play").textContent="▶";
-     stopYTTimer();
+     },
 
-    }else if(e.data===YT.PlayerState.ENDED){
 
-     stopYTTimer();
-     nextSong();
+     onStateChange:e=>{
+
+      if(
+       e.data===
+       YT.PlayerState.PLAYING
+      ){
+
+       $("play").textContent=
+        "⏸";
+
+
+       vinylPlay();
+
+
+       startYTTimer();
+
+
+      }else if(
+       e.data===
+       YT.PlayerState.PAUSED
+      ){
+
+       $("play").textContent=
+        "▶";
+
+
+       vinylPause();
+
+
+       stopYTTimer();
+
+
+      }else if(
+       e.data===
+       YT.PlayerState.ENDED
+      ){
+
+       vinylPause();
+
+
+       stopYTTimer();
+
+
+       nextSong();
+
+      }
+
+     },
+
+
+     onError:e=>{
+
+      $("status").textContent=
+       "YouTube Error";
+
+
+      vinylPause();
+
+
+      console.log(
+       "YouTube error:",
+       e.data
+      );
+
+     }
+
     }
-   },
 
-   onError:e=>{
-    $("status").textContent="YouTube Error";
-    console.log("YouTube error:",e.data);
    }
-  }
- });
+  );
+
 }
 
 
-/* YOUTUBE PROGRESS */
+/* =========================================================
+   YOUTUBE PROGRESS
+========================================================= */
 
 function startYTTimer(){
 
  stopYTTimer();
 
- ytTimer=setInterval(()=>{
 
-  if(!yt)return;
+ ytTimer=
+  setInterval(()=>{
 
-  try{
+   if(!yt)
+    return;
 
-   const cur=yt.getCurrentTime();
-   const dur=yt.getDuration();
 
-   if(dur>0){
+   try{
 
-    $("cur").textContent=time(cur);
-    $("dur").textContent=time(dur);
+    const cur=
+      yt.getCurrentTime();
 
-    $("bar").value=cur/dur*100;
-   }
 
-  }catch(e){}
+    const dur=
+      yt.getDuration();
 
- },500);
+
+    if(dur>0){
+
+     $("cur").textContent=
+       time(cur);
+
+
+     $("dur").textContent=
+       time(dur);
+
+
+     $("bar").value=
+       cur/dur*100;
+
+    }
+
+   }catch(e){}
+
+  },500);
+
 }
+
 
 function stopYTTimer(){
 
  if(ytTimer){
-  clearInterval(ytTimer);
+
+  clearInterval(
+   ytTimer
+  );
+
+
   ytTimer=null;
+
  }
+
 }
+
 
 $("bar").oninput=()=>{
 
@@ -349,1115 +1258,773 @@ $("bar").oninput=()=>{
   yt
  ){
 
-  const dur=yt.getDuration();
+  const dur=
+    yt.getDuration();
+
 
   if(dur){
 
    yt.seekTo(
-    $("bar").value/100*dur,
+    $("bar").value/
+    100*
+    dur,
     true
    );
+
   }
+
 
  }else if(audio.duration){
 
   audio.currentTime=
-   $("bar").value/100*
+   $("bar").value/
+   100*
    audio.duration;
+
  }
+
 };
+
 
 function stopYT(){
 
  stopYTTimer();
 
+
  if(yt){
-  try{yt.stopVideo()}catch(e){}
+
+  try{
+
+   yt.stopVideo();
+
+  }catch(e){}
+
  }
+
 }
 
 
-/* CONTROLS */
+/* =========================================================
+   CONTROLS
+========================================================= */
 
 $("play").onclick=()=>{
 
  if(current<0){
 
-  if(songs.length)playSong(0);
+  if(songs.length)
+   playSong(0);
+
+
   return;
+
  }
 
- const s=songs[current];
+
+ const s=
+   songs[current];
+
 
  if(s.type==="yt"){
 
-  if(!yt)return;
+  if(!yt)
+   return;
 
-  const state=yt.getPlayerState();
 
-  if(state===YT.PlayerState.PLAYING)
+  const state=
+    yt.getPlayerState();
+
+
+  if(
+   state===
+   YT.PlayerState.PLAYING
+  ){
+
    yt.pauseVideo();
-  else
+
+  }else{
+
    yt.playVideo();
+
+  }
+
 
  }else{
 
   audio.paused?
    audio.play():
    audio.pause();
+
  }
+
 };
 
-function nextSong(){
 
- if(!songs.length)return;
+$("next").onclick=
+ nextSong;
 
- let i;
-
- if(shuffle){
-
-  i=Math.floor(Math.random()*songs.length);
-
- }else{
-
-  i=current+1;
-
-  if(i>=songs.length)
-   i=repeat?0:songs.length-1;
- }
-
- playSong(i);
-}
-
-$("next").onclick=nextSong;
 
 $("prev").onclick=()=>{
 
- if(!songs.length)return;
+ if(!songs.length)
+  return;
+
 
  playSong(
   current<=0?
   songs.length-1:
   current-1
  );
+
 };
+
 
 $("shuffle").onclick=()=>{
+
  shuffle=!shuffle;
- $("shuffle").classList.toggle("on",shuffle);
+
+
+ $("shuffle")
+  .classList.toggle(
+   "on",
+   shuffle
+  );
+
 };
+
 
 $("repeat").onclick=()=>{
+
  repeat=!repeat;
- $("repeat").classList.toggle("on",repeat);
+
+
+ $("repeat")
+  .classList.toggle(
+   "on",
+   repeat
+  );
+
 };
+
 
 $("addBtn").onclick=()=>{
- $("panel").classList.toggle("open");
+
+ $("panel")
+  .classList.toggle(
+   "open"
+  );
+
 };
 
 
-/* LOCAL FILE */
+/* =========================================================
+   NEXT
+========================================================= */
 
-$("files").onchange=async e=>{
+function nextSong(){
 
- for(const f of e.target.files){
+ if(!songs.length)
+  return;
 
-  await saveSong({
 
-   id:crypto.randomUUID(),
+ let i;
 
-   type:"local",
 
-   title:f.name.replace(/\.[^/.]+$/,""),
+ if(shuffle){
 
-   artist:"Local File",
+  i=
+   Math.floor(
+    Math.random()*
+    songs.length
+   );
 
-   blob:f
-  });
+
+ }else{
+
+  i=
+   current+1;
+
+
+  if(
+   i>=songs.length
+  ){
+
+   i=
+    repeat?
+    0:
+    songs.length-1;
+
+  }
+
  }
 
- songs=await getSongs();
- render();
 
- e.target.value="";
-};
+ playSong(i);
+
+}
 
 
-/* SEARCH CACHE */
+/* =========================================================
+   LOCAL FILE
+========================================================= */
+
+$("files").onchange=
+ async e=>{
+
+  for(
+   const f of e.target.files
+  ){
+
+   await saveSong({
+
+    id:
+     crypto.randomUUID(),
+
+    type:
+     "local",
+
+    title:
+     f.name.replace(
+      /\.[^/.]+$/,
+      ""
+     ),
+
+    artist:
+     "Local File",
+
+    blob:f
+
+   });
+
+  }
+
+
+  songs=
+   await getSongs();
+
+
+  render();
+
+
+  e.target.value="";
+
+ };
+
+
+/* =========================================================
+   SEARCH CACHE
+========================================================= */
 
 function getCache(key){
 
  return new Promise(resolve=>{
 
-  const r=db.transaction("searchCache")
-   .objectStore("searchCache")
+  const r=
+   db.transaction(
+    "searchCache"
+   )
+   .objectStore(
+    "searchCache"
+   )
    .get(key);
+
 
   r.onsuccess=()=>{
 
-   const x=r.result;
+   const x=
+     r.result;
+
 
    if(!x){
+
     resolve(null);
+
     return;
+
    }
 
-   const age=Date.now()-x.time;
 
-   if(age>86400000){
+   const age=
+     Date.now()-x.time;
+
+
+   if(
+    age>86400000
+   ){
 
     deleteCache(key);
+
     resolve(null);
 
    }else{
 
-    resolve(x.data);
+    resolve(
+     x.data
+    );
+
    }
+
   };
 
-  r.onerror=()=>resolve(null);
+
+  r.onerror=()=>
+   resolve(null);
+
  });
+
 }
 
-function saveCache(key,data){
+
+function saveCache(
+ key,
+ data
+){
 
  return new Promise(resolve=>{
 
-  const t=db.transaction(
-   "searchCache","readwrite"
-  );
+  const t=
+   db.transaction(
+    "searchCache",
+    "readwrite"
+   );
 
-  t.objectStore("searchCache").put({
+
+  t.objectStore(
+   "searchCache"
+  ).put({
+
    key:key,
-   time:Date.now(),
+
+   time:
+    Date.now(),
+
    data:data
+
   });
 
-  t.oncomplete=resolve;
+
+  t.oncomplete=
+   resolve;
+
  });
+
 }
+
 
 function deleteCache(key){
 
- const t=db.transaction(
-  "searchCache","readwrite"
- );
+ const t=
+  db.transaction(
+   "searchCache",
+   "readwrite"
+  );
 
- t.objectStore("searchCache").delete(key);
+
+ t.objectStore(
+  "searchCache"
+ ).delete(key);
+
 }
 
 
-/* YOUTUBE SEARCH */
+/* =========================================================
+   YOUTUBE SEARCH
+========================================================= */
 
 async function search(){
 
- const q=$("query").value.trim();
+ const q=
+   $("query")
+   .value
+   .trim();
 
- if(!q)return;
 
- $("results").innerHTML="🔎 Mencari...";
+ if(!q)
+  return;
 
- const key=q.toLowerCase();
+
+ $("results").innerHTML=
+   "🔎 Mencari...";
+
+
+ const key=
+   q.toLowerCase();
+
 
  try{
 
-  /* CEK CACHE */
+  const cached=
+    await getCache(
+     key
+    );
 
-  const cached=await getCache(key);
 
   if(cached){
 
    $("results").innerHTML=
     '<small style="color:#777">⚡ Dari cache</small>';
 
-   showResults(cached);
+
+   showResults(
+    cached
+   );
+
 
    return;
+
   }
+
 
   if(
    !YOUTUBE_API_KEY ||
-   YOUTUBE_API_KEY==="ISI_API_KEY_KAMU"
+   YOUTUBE_API_KEY===
+   "ISI_API_KEY_KAMU"
   ){
 
    $("results").innerHTML=
     "❌ API key belum diisi.";
 
+
    return;
+
   }
 
-  /* HANYA 1 REQUEST API */
 
-  const u=new URL(
-   "https://www.googleapis.com/youtube/v3/search"
+  const u=
+   new URL(
+    "https://www.googleapis.com/youtube/v3/search"
+   );
+
+
+  u.searchParams.set(
+   "part",
+   "snippet"
   );
 
-  u.searchParams.set("part","snippet");
-  u.searchParams.set("type","video");
-  u.searchParams.set("maxResults","10");
-  u.searchParams.set("q",q);
-  u.searchParams.set("key",YOUTUBE_API_KEY);
 
-  const r=await fetch(u);
+  u.searchParams.set(
+   "type",
+   "video"
+  );
+
+
+  u.searchParams.set(
+   "maxResults",
+   "10"
+  );
+
+
+  u.searchParams.set(
+   "q",
+   q
+  );
+
+
+  u.searchParams.set(
+   "key",
+   YOUTUBE_API_KEY
+  );
+
+
+  const r=
+   await fetch(u);
+
 
   if(!r.ok)
-   throw new Error("HTTP "+r.status);
+   throw new Error(
+    "HTTP "+r.status
+   );
 
-  const data=await r.json();
 
-  const results=data.items.map(x=>({
+  const data=
+   await r.json();
 
-   id:"yt_"+x.id.videoId,
 
-   type:"yt",
+  const results=
+   data.items.map(
+    x=>({
 
-   videoId:x.id.videoId,
+     id:
+      "yt_"+x.id.videoId,
 
-   title:x.snippet.title,
+     type:
+      "yt",
 
-   artist:x.snippet.channelTitle,
+     videoId:
+      x.id.videoId,
 
-   thumb:x.snippet.thumbnails.medium.url,
+     title:
+      x.snippet.title,
 
-   duration:0
-  }));
+     artist:
+      x.snippet.channelTitle,
 
-  await saveCache(key,results);
+     thumb:
+      x.snippet
+       .thumbnails
+       .medium
+       .url,
 
-  showResults(results);
+     duration:0
+
+    })
+   );
+
+
+  await saveCache(
+   key,
+   results
+  );
+
+
+  showResults(
+   results
+  );
+
 
  }catch(e){
 
   console.error(e);
 
+
   $("results").innerHTML=
-   "❌ Gagal: "+esc(e.message);
+   "❌ Gagal: "+
+   esc(e.message);
+
  }
+
 }
 
 
-/* SHOW RESULTS */
+/* =========================================================
+   CLOSE RESULTS
+========================================================= */
+
 function closeResults(){
-    $("results").innerHTML="";
+
+ $("results").innerHTML="";
+
 }
+
+
+/* =========================================================
+   SHOW RESULTS
+========================================================= */
 
 function showResults(results){
 
-    $("results").innerHTML=`
-        <div class="result-head">
-            <span>Hasil YouTube</span>
-            <button id="closeResults">✕</button>
-        </div>
-    `;
+ $("results").innerHTML=`
 
-    $("closeResults").onclick=closeResults;
+  <div class="result-head">
 
-    results.forEach(song=>{
+   <span>
+    Hasil YouTube
+   </span>
 
-        const d=document.createElement("div");
+   <button id="closeResults">
+    ✕
+   </button>
 
-        d.className="result";
+  </div>
 
-        d.innerHTML=`
-            <img src="${song.thumb}">
+ `;
 
-            <div class="ri">
 
-                <b>${esc(song.title)}</b>
+ $("closeResults")
+  .onclick=
+  closeResults;
 
-                <small>
-                    ${esc(song.artist)}
-                </small>
 
-                <button class="p">
-                    ▶ Play
-                </button>
+ results.forEach(song=>{
 
-                <button class="a">
-                    ＋ Playlist
-                </button>
+  const d=
+   document.createElement("div");
 
-            </div>
-        `;
 
-        /* PLAY */
+  d.className=
+   "result";
 
-        d.querySelector(".p").onclick=()=>{
 
-            playYT(song);
+  d.innerHTML=`
 
-            closeResults();
+   <img
+    src="${esc(song.thumb)}"
+   >
 
-        };
 
-        /* PLAYLIST */
+   <div class="ri">
 
-        d.querySelector(".a").onclick=async()=>{
+    <b>
+     ${esc(song.title)}
+    </b>
 
-            await saveSong(song);
 
-            songs=await getSongs();
+    <small>
+     ${esc(song.artist)}
+    </small>
 
-            render();
 
-            closeResults();
+    <button class="p">
+     ▶ Play
+    </button>
 
-        };
 
-        $("results").appendChild(d);
-    });
+    <button class="a">
+     ＋ Playlist
+    </button>
+
+   </div>
+
+  `;
+
+
+  d.querySelector(".p")
+   .onclick=()=>{
+
+    playYT(song);
+
+    closeResults();
+
+   };
+
+
+  d.querySelector(".a")
+   .onclick=
+   async()=>{
+
+    await saveSong(
+     song
+    );
+
+
+    songs=
+     await getSongs();
+
+
+    render();
+
+
+    closeResults();
+
+   };
+
+
+  $("results")
+   .appendChild(d);
+
+ });
+
 }
 
 
-/* SEARCH */
-
-$("searchBtn").onclick=search;
-
-$("query").onkeydown=e=>{
- if(e.key==="Enter")search();
-};
-
-
-/* CLEAR */
-
-$("clear").onclick=async()=>{
-
- if(!confirm("Hapus semua lagu?"))
-  return;
-
- const t=db.transaction(
-  "songs","readwrite"
- );
-
- t.objectStore("songs").clear();
-
- t.oncomplete=()=>{
-
-  songs=[];
-  current=-1;
-
-  stopYT();
-  audio.pause();
-
-  render();
-
-  $("title").textContent=
-   "Belum ada lagu";
-
-  $("artist").textContent=
-   "Tambahkan musik untuk mulai";
-
-  $("cur").textContent="0:00";
-  $("dur").textContent="0:00";
-  $("bar").value=0;
- };
-};
-
-
-/* START */
-
-openDB().then(async()=>{
-
- songs=await getSongs();
-
- render();
-
- $("status").textContent="Ready";
-});
-
 /* =========================================================
-   MYMUSIC — PREMIUM VINYL + VISUALIZER
-   Cocok dengan app.js MyMusic saat ini
+   SEARCH
 ========================================================= */
 
-(function(){
+$("searchBtn").onclick=
+ search;
 
-  const audioEl = document.getElementById("audio");
-  const coverEl = document.getElementById("cover");
 
-  if(!audioEl || !coverEl) return;
+$("query").onkeydown=e=>{
 
+ if(e.key==="Enter")
+  search();
 
-  /* =====================================================
-     1. BUAT VINYL + VISUALIZER
-  ===================================================== */
+};
 
-  if(!document.getElementById("vinylWrap")){
 
-    coverEl.insertAdjacentHTML("beforebegin",`
+/* =========================================================
+   CLEAR
+========================================================= */
 
-      <div id="vinylWrap">
-
-        <div class="vinyl" id="vinyl">
-
-          <div id="vinylCenter">
-            ♪
-          </div>
-
-        </div>
-
-      </div>
-
-      <canvas id="viz"></canvas>
-
-    `);
-
-  }
-
-
-  const vinyl =
-    document.getElementById("vinyl");
-
-  const vinylCenter =
-    document.getElementById("vinylCenter");
-
-  const canvas =
-    document.getElementById("viz");
-
-  const ctx =
-    canvas.getContext("2d");
-
-
-  /* =====================================================
-     2. UPDATE COVER VINYL
-  ===================================================== */
-
-  function setVinylCover(src){
-
-    if(!src){
-
-      vinylCenter.innerHTML="♪";
-
-      return;
-    }
-
-    vinylCenter.innerHTML=`
-
-      <img
-        src="${src}"
-        alt=""
-      >
-
-    `;
-
-  }
-
-
-  /* =====================================================
-     3. COVER DARI PLAYER
-  ===================================================== */
-
-  function updateVinylFromCover(){
-
-    const img =
-      coverEl.querySelector("img");
-
-    if(img && img.src){
-
-      setVinylCover(img.src);
-
-    }
-
-  }
-
-
-  /* =====================================================
-     4. PANTAU PERUBAHAN COVER
-  ===================================================== */
-
-  const coverObserver =
-    new MutationObserver(()=>{
-
-      updateVinylFromCover();
-
-    });
-
-
-  coverObserver.observe(
-    coverEl,
-    {
-      childList:true,
-      subtree:true,
-      attributes:true,
-      attributeFilter:["src"]
-    }
-  );
-
-
-  /* =====================================================
-     5. AUDIO CONTEXT
-  ===================================================== */
-
-  let audioContext=null;
-  let analyser=null;
-  let sourceNode=null;
-  let dataArray=null;
-
-
-  function initVisualizer(){
-
-    if(audioContext) return;
-
-
-    try{
-
-      audioContext =
-        new (
-          window.AudioContext ||
-          window.webkitAudioContext
-        )();
-
-
-      analyser =
-        audioContext.createAnalyser();
-
-
-      analyser.fftSize=128;
-
-
-      analyser.smoothingTimeConstant=.85;
-
-
-      /*
-       * PENTING:
-       * Hanya dibuat satu kali.
-       */
-
-      sourceNode =
-        audioContext.createMediaElementSource(
-          audioEl
-        );
-
-
-      sourceNode.connect(
-        analyser
-      );
-
-
-      analyser.connect(
-        audioContext.destination
-      );
-
-
-      dataArray =
-        new Uint8Array(
-          analyser.frequencyBinCount
-        );
-
-
-    }catch(err){
-
-      console.warn(
-        "Visualizer gagal:",
-        err
-      );
-
-    }
-
-  }
-
-
-  /* =====================================================
-     6. CANVAS RESPONSIVE
-  ===================================================== */
-
-  function resizeVisualizer(){
-
-    const rect =
-      canvas.getBoundingClientRect();
-
-
-    const dpr =
-      window.devicePixelRatio || 1;
-
-
-    canvas.width =
-      rect.width*dpr;
-
-
-    canvas.height =
-      rect.height*dpr;
-
-
-    ctx.setTransform(
-      dpr,
-      0,
-      0,
-      dpr,
-      0,
-      0
-    );
-
-  }
-
-
-  resizeVisualizer();
-
-
-  window.addEventListener(
-    "resize",
-    resizeVisualizer
-  );
-
-
-  /* =====================================================
-     7. VISUALIZER
-  ===================================================== */
-
-  function draw(){
-
-    requestAnimationFrame(draw);
-
-
-    const width =
-      canvas.clientWidth;
-
-
-    const height =
-      canvas.clientHeight;
-
-
-    ctx.clearRect(
-      0,
-      0,
-      width,
-      height
-    );
-
-
-    /*
-     * Background
-     */
-
-    ctx.fillStyle="#0b0b0b";
-
-    ctx.fillRect(
-      0,
-      0,
-      width,
-      height
-    );
-
-
-    /* ================================================
-       BELUM ADA AUDIO
-    ================================================ */
-
-    if(!analyser){
-
-      drawIdle(
-        width,
-        height
-      );
-
-      return;
-
-    }
-
-
-    analyser.getByteFrequencyData(
-      dataArray
-    );
-
-
-    const bars =
-      dataArray.length;
-
-
-    const gap=2;
-
-
-    const barWidth =
-      width/bars;
-
-
-    /* ================================================
-       BAR
-    ================================================ */
-
-    for(
-      let i=0;
-      i<bars;
-      i++
-    ){
-
-      const value =
-        dataArray[i]/255;
-
-
-      let barHeight =
-        value*height*.88;
-
-
-      if(barHeight<2)
-        barHeight=2;
-
-
-      const x =
-        i*barWidth;
-
-
-      const y =
-        height-barHeight;
-
-
-      /*
-       * Gradient elegan
-       */
-
-      const gradient =
-        ctx.createLinearGradient(
-          0,
-          height,
-          0,
-          0
-        );
-
-
-      gradient.addColorStop(
-        0,
-        "#777"
-      );
-
-
-      gradient.addColorStop(
-        .5,
-        "#ddd"
-      );
-
-
-      gradient.addColorStop(
-        1,
-        "#fff"
-      );
-
-
-      ctx.fillStyle=
-        gradient;
-
-
-      /*
-       * Rounded top
-       */
-
-      const w =
-        Math.max(
-          1,
-          barWidth-gap
-        );
-
-
-      const radius =
-        Math.min(
-          3,
-          w/2
-        );
-
-
-      ctx.beginPath();
-
-
-      ctx.roundRect(
-        x,
-        y,
-        w,
-        barHeight,
-        radius
-      );
-
-
-      ctx.fill();
-
-    }
-
-  }
-
-
-  /* =====================================================
-     8. IDLE VISUALIZER
-  ===================================================== */
-
-  function drawIdle(width,height){
-
-    const bars=52;
-
-    const barWidth =
-      width/bars;
-
-
-    for(
-      let i=0;
-      i<bars;
-      i++
-    ){
-
-      const h =
-        2+
-        Math.abs(
-          Math.sin(i*.65)
-        )*3;
-
-
-      ctx.fillStyle=
-        "rgba(255,255,255,.16)";
-
-
-      ctx.fillRect(
-        i*barWidth,
-        height-h,
-        Math.max(
-          1,
-          barWidth-2
-        ),
-        h
-      );
-
-    }
-
-  }
-
-
-  draw();
-
-
-  /* =====================================================
-     9. LOCAL AUDIO PLAY
-  ===================================================== */
-
-  audioEl.addEventListener(
-    "play",
-    async()=>{
-
-      /*
-       * Pastikan visualizer aktif
-       */
-
-      initVisualizer();
-
-
-      if(
-        audioContext &&
-        audioContext.state==="suspended"
-      ){
-
-        try{
-
-          await audioContext.resume();
-
-        }catch(e){}
-
-      }
-
-
-      /*
-       * Putar vinyl
-       */
-
-      vinyl.classList.add(
-        "playing"
-      );
-
-    }
-  );
-
-
-  /* =====================================================
-     10. LOCAL AUDIO PAUSE
-  ===================================================== */
-
-  audioEl.addEventListener(
-    "pause",
-    ()=>{
-
-      vinyl.classList.remove(
-        "playing"
-      );
-
-    }
-  );
-
-
-  /* =====================================================
-     11. LOCAL AUDIO END
-  ===================================================== */
-
-  audioEl.addEventListener(
-    "ended",
-    ()=>{
-
-      vinyl.classList.remove(
-        "playing"
-      );
-
-    }
-  );
-
-
-  /* =====================================================
-     12. HOOK playSong
-     
-     Tujuannya agar cover vinyl langsung
-     mengikuti lagu yang dipilih.
-  ===================================================== */
-
-  const originalPlaySong =
-    window.playSong;
-
+$("clear").onclick=
+ async()=>{
 
   if(
-    typeof originalPlaySong==="function"
-  ){
-
-    window.playSong =
-      function(i){
-
-        const song =
-          window.songs?.[i];
+   !confirm(
+    "Hapus semua lagu?"
+   )
+  )
+   return;
 
 
-        if(song){
-
-          if(song.thumb){
-
-            setVinylCover(
-              song.thumb
-            );
-
-          }else{
-
-            setVinylCover(null);
-
-          }
-
-        }
+  const t=
+   db.transaction(
+    "songs",
+    "readwrite"
+   );
 
 
-        return originalPlaySong.apply(
-          this,
-          arguments
-        );
-
-      };
-
-  }
+  t.objectStore(
+   "songs"
+  ).clear();
 
 
-  /* =====================================================
-     13. HOOK playYT
-     
-     YouTube tidak masuk ke AudioContext,
-     tetapi vinyl tetap menampilkan cover.
-  ===================================================== */
+  t.oncomplete=()=>{
 
-  const originalPlayYT =
-    window.playYT;
+   songs=[];
+
+   current=-1;
 
 
-  if(
-    typeof originalPlayYT==="function"
-  ){
-
-    window.playYT =
-      function(song){
-
-        /*
-         * Cover YouTube
-         */
-
-        if(song && song.thumb){
-
-          setVinylCover(
-            song.thumb
-          );
-
-        }
+   stopYT();
 
 
-        /*
-         * Audio lokal harus berhenti
-         */
-
-        vinyl.classList.remove(
-          "playing"
-        );
+   audio.pause();
 
 
-        return originalPlayYT.apply(
-          this,
-          arguments
-        );
-
-      };
-
-  }
+   vinylPause();
 
 
-  /* =====================================================
-     14. SINKRONISASI YOUTUBE
-  ===================================================== */
-
-  function syncYouTube(){
-
-    if(
-      typeof yt==="undefined" ||
-      !yt ||
-      typeof yt.getPlayerState!=="function"
-    ){
-
-      return;
-
-    }
+   render();
 
 
-    try{
-
-      const state =
-        yt.getPlayerState();
+   $("title").textContent=
+    "Belum ada lagu";
 
 
-      if(
-        state ===
-        YT.PlayerState.PLAYING
-      ){
-
-        vinyl.classList.add(
-          "playing"
-        );
+   $("artist").textContent=
+    "Tambahkan musik untuk mulai";
 
 
-      }else{
+   $("cur").textContent=
+    "0:00";
 
-        vinyl.classList.remove(
-          "playing"
-        );
 
-      }
+   $("dur").textContent=
+    "0:00";
 
-    }catch(e){}
+
+   $("bar").value=0;
+
+
+   updateVinylCover(null);
+
+  };
+
+ };
+
+
+/* =========================================================
+   START
+========================================================= */
+
+openDB()
+ .then(
+  async()=>{
+
+   songs=
+    await getSongs();
+
+
+   render();
+
+
+   initVinyl();
+
+
+   $("status").textContent=
+    "Ready";
 
   }
-
-
-  /*
-   * Cek YouTube setiap 250ms.
-   *
-   * Vinyl tetap berputar ketika YouTube
-   * sedang playing, tetapi visualizer
-   * tetap hanya membaca audio lokal.
-   */
-
-  setInterval(
-    syncYouTube,
-    250
-  );
-
-
-  /* =====================================================
-     15. COVER AWAL
-  ===================================================== */
-
-  updateVinylFromCover();
-
-
-})();
+ );
