@@ -2631,36 +2631,56 @@ function closeResults(){
 
 }
 
-
 /* =========================================================
    COBALT DOWNLOAD
-   BAGIAN UTAMA FITUR DOWNLOAD
+   MYMUSIC V2 — COBALT 11.7.1
+   ---------------------------------------------------------
+   - Compatible dengan Cobalt API 11.7.1
+   - Audio MP3
+   - Hasil disimpan ke IndexedDB
+   - Tidak mengubah sistem playback
+   - Tidak mengubah YouTube player
+   - Tidak mengubah Media Session
 ========================================================= */
-/* =========================================================
-   COBALT DOWNLOAD - VERSI COCOK COBALT V11.7.1
-========================================================= */
+
 async function downloadCobalt(song, button){
 
   if(
-   !song ||
-   !song.videoId
+    !song ||
+    !song.videoId
   ){
-    return;
+
+    return null;
+
   }
+
 
   const originalText =
     button
-   ?
-    button.textContent
-    :
-    "";
+      ? button.textContent
+      : "";
+
 
   try{
 
+    /* =====================================================
+       BUTTON STATE
+    ===================================================== */
+
     if(button){
-      button.disabled = true;
-      button.textContent = "⏳ Memproses...";
+
+      button.disabled =
+        true;
+
+      button.textContent =
+        "⏳ Memproses...";
+
     }
+
+
+    /* =====================================================
+       YOUTUBE URL
+    ===================================================== */
 
     const youtubeURL =
       "https://www.youtube.com/watch?v=" +
@@ -2668,118 +2688,434 @@ async function downloadCobalt(song, button){
         song.videoId
       );
 
-    /*
-       Cobalt API v11.7.1 format terbaru
-    */
+
+    /* =====================================================
+       COBALT 11.7.1 REQUEST
+       -----------------------------------------------------
+       PENTING:
+       Jangan menggunakan:
+
+       isAudioOnly
+       audioQuality
+       filenameStyle
+       disableMetadata
+       embedMetadata
+
+       karena payload tersebut bukan payload
+       minimal yang kita gunakan untuk Cobalt 11.7.1.
+    ===================================================== */
+
     const response =
       await fetch(
         COBALT_API,
         {
-          method: "POST",
+
+          method:
+            "POST",
+
           headers:{
-            "Accept": "application/json",
-            "Content-Type": "application/json"
+            "Accept":
+              "application/json",
+
+            "Content-Type":
+              "application/json"
           },
-          body: JSON.stringify({
-            url: youtubeURL,
-            isAudioOnly: true, // <--- INI YG BARU
-            audioFormat: "mp3",
-            audioQuality: "128", // <--- INI YG BARU
-            filenameStyle: "basic",
-            disableMetadata: false,
-            embedMetadata: true // <--- TAMBAHAN BIAR ADA JUDUL/ARTIST
-          })
+
+          body:
+            JSON.stringify({
+
+              url:
+                youtubeURL,
+
+              downloadMode:
+                "audio",
+
+              audioFormat:
+                "mp3"
+
+            })
+
         }
       );
 
+
+    /* =====================================================
+       BACA RESPONSE SEBAGAI TEXT DULU
+       -----------------------------------------------------
+       Supaya error Cobalt tetap terlihat walaupun
+       response bukan JSON sempurna.
+    ===================================================== */
+
+    const responseText =
+      await response.text();
+
+
+    console.log(
+      "Cobalt HTTP:",
+      response.status
+    );
+
+
+    console.log(
+      "Cobalt response:",
+      responseText
+    );
+
+
+    /* =====================================================
+       HTTP ERROR
+    ===================================================== */
+
     if(!response.ok){
-      const errorText = await response.text();
-      console.error("COBALT ERROR:", response.status, errorText);
-      throw new Error("Cobalt HTTP " + response.status + "\n" + errorText);
+
+      throw new Error(
+        "Cobalt HTTP " +
+        response.status +
+        "\n" +
+        responseText
+      );
+
     }
 
-    const data = await response.json();
-    console.log("Cobalt response:", data);
 
-    if(data.status === "error"){
-      throw new Error(data.error?.code || "Cobalt gagal memproses video");
+    /* =====================================================
+       PARSE JSON
+    ===================================================== */
+
+    let data;
+
+
+    try{
+
+      data =
+        JSON.parse(
+          responseText
+        );
+
+    }catch(error){
+
+      throw new Error(
+        "Response Cobalt bukan JSON:\n" +
+        responseText
+      );
+
     }
 
-    if(data.status!== "tunnel" && data.status!== "redirect"){
-      throw new Error("Status Cobalt: " + data.status);
+
+    console.log(
+      "Cobalt parsed:",
+      data
+    );
+
+
+    /* =====================================================
+       COBALT ERROR
+    ===================================================== */
+
+    if(
+      data.status ===
+      "error"
+    ){
+
+      const cobaltCode =
+        data.error?.code ||
+        "";
+
+      const cobaltMessage =
+        data.error?.message ||
+        "";
+
+      throw new Error(
+        cobaltCode ||
+        cobaltMessage ||
+        "Cobalt gagal memproses video"
+      );
+
     }
 
-    if(!data.url){
-      throw new Error("URL hasil download tidak ditemukan");
+
+    /* =====================================================
+       VALIDATE RESULT
+       -----------------------------------------------------
+       Cobalt dapat memberikan:
+       - tunnel
+       - redirect
+    ===================================================== */
+
+    if(
+      data.status !==
+        "tunnel" &&
+      data.status !==
+        "redirect"
+    ){
+
+      throw new Error(
+        "Status Cobalt tidak dikenali: " +
+        (
+          data.status ||
+          "unknown"
+        )
+      );
+
     }
+
+
+    /* =====================================================
+       RESULT URL
+    ===================================================== */
+
+    if(
+      !data.url
+    ){
+
+      console.error(
+        "Cobalt tidak memberikan URL:",
+        data
+      );
+
+
+      throw new Error(
+        "URL hasil download tidak ditemukan"
+      );
+
+    }
+
+
+    /* =====================================================
+       DOWNLOAD FILE
+    ===================================================== */
 
     if(button){
-      button.textContent = "⬇ Mengambil MP3...";
+
+      button.textContent =
+        "⬇ Mengambil MP3...";
+
     }
 
-    const fileResponse = await fetch(data.url);
+
+    const fileResponse =
+      await fetch(
+        data.url
+      );
+
+
     if(!fileResponse.ok){
-      throw new Error("Gagal mengambil file MP3 (" + fileResponse.status + ")");
+
+      throw new Error(
+        "Gagal mengambil file MP3 (" +
+        fileResponse.status +
+        ")"
+      );
+
     }
 
-    const blob = await fileResponse.blob();
-    if(!blob ||!blob.size){
-      throw new Error("File MP3 kosong");
+
+    /* =====================================================
+       CONVERT RESPONSE TO BLOB
+    ===================================================== */
+
+    const blob =
+      await fileResponse.blob();
+
+
+    if(
+      !blob ||
+      !blob.size
+    ){
+
+      throw new Error(
+        "File MP3 kosong"
+      );
+
     }
+
+
+    /* =====================================================
+       FORCE AUDIO MIME
+       -----------------------------------------------------
+       Supaya IndexedDB menyimpan sebagai audio/mpeg
+    ===================================================== */
 
     const mp3Blob =
-      blob.type === "audio/mpeg"
-     ?
-      blob
-      :
-      new Blob([blob], {type: "audio/mpeg"});
+      new Blob(
+        [blob],
+        {
+          type:
+            "audio/mpeg"
+        }
+      );
+
+
+    /* =====================================================
+       CREATE LOCAL SONG
+       -----------------------------------------------------
+       Struktur tetap kompatibel dengan library MyMusic
+    ===================================================== */
 
     const downloadedSong = {
-      id: "cobalt_" + song.videoId,
-      type: "local",
-      source: "cobalt",
-      videoId: song.videoId,
-      title: song.title,
-      artist: song.artist,
-      thumb: song.thumb,
-      blob: mp3Blob,
-      duration: song.duration || 0
+
+      id:
+        "cobalt_" +
+        song.videoId,
+
+      type:
+        "local",
+
+      source:
+        "cobalt",
+
+      videoId:
+        song.videoId,
+
+      title:
+        song.title ||
+        "YouTube Music",
+
+      artist:
+        song.artist ||
+        "YouTube",
+
+      thumb:
+        song.thumb ||
+        "",
+
+      blob:
+        mp3Blob,
+
+      duration:
+        song.duration ||
+        0
+
     };
 
-    await saveSong(downloadedSong);
-    songs = await getSongs();
+
+    /* =====================================================
+       SAVE TO INDEXEDDB
+    ===================================================== */
+
+    await saveSong(
+      downloadedSong
+    );
+
+
+    /* =====================================================
+       REFRESH LIBRARY
+    ===================================================== */
+
+    songs =
+      await getSongs();
+
+
     render();
 
+
+    /* =====================================================
+       SUCCESS STATE
+    ===================================================== */
+
     if(button){
-      button.textContent = "✓ Tersimpan";
+
+      button.textContent =
+        "✓ Tersimpan";
+
     }
+
+
     if($("status")){
-      $("status").textContent = "MP3 tersimpan di Library";
+
+      $("status").textContent =
+        "MP3 tersimpan di Library";
+
     }
+
+
     return downloadedSong;
 
+
   }catch(error){
-    console.error("Cobalt download error:", error);
+
+    /* =====================================================
+       ERROR
+    ===================================================== */
+
+    console.error(
+      "Cobalt download error:",
+      error
+    );
+
+
     if(button){
-      button.textContent = "❌ Gagal";
+
+      button.textContent =
+        "❌ Gagal";
+
     }
+
+
     if($("status")){
-      $("status").textContent = "Download gagal";
+
+      $("status").textContent =
+        "Download gagal";
+
     }
-    alert("Download gagal:\n\n" + error.message);
+
+
+    alert(
+      "Download gagal:\n\n" +
+      error.message
+    );
+
+
     return null;
+
+
   }finally{
+
+    /* =====================================================
+       RESTORE BUTTON
+    ===================================================== */
+
     if(button){
-      setTimeout(() => {
-        if(button && document.body.contains(button)){
-          button.disabled = false;
-          if(button.textContent === "⏳ Memproses..." || button.textContent === "⬇ Mengambil MP3..." || button.textContent === "❌ Gagal"){
-            button.textContent = originalText || "⬇ Download";
+
+      setTimeout(
+        () => {
+
+          if(
+            button &&
+            document.body.contains(
+              button
+            )
+          ){
+
+            button.disabled =
+              false;
+
+
+            if(
+              button.textContent ===
+                "⏳ Memproses..." ||
+              button.textContent ===
+                "⬇ Mengambil MP3..." ||
+              button.textContent ===
+                "❌ Gagal"
+            ){
+
+              button.textContent =
+                originalText ||
+                "⬇ Download";
+
+            }
+
           }
-        }
-      }, 2500);
+
+        },
+        2500
+      );
+
     }
+
   }
+
 }
 
 /* =========================================================
