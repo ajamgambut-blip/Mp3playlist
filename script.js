@@ -1,14 +1,17 @@
 /* =========================================================
-   MYMUSIC — APP.JS
-   Premium Vinyl + Visualizer
+   MYMUSIC V2 — APP.JS
+   Premium Vinyl + Safe Visualizer
    YouTube + Local Music + IndexedDB
 
-   FIX:
-   - iOS Lock Screen playback
-   - Media Session API
-   - Native <audio> playback
-   - Background playback
-   - Safer Blob URL handling
+   V2 FOCUS
+   ---------------------------------------------------------
+   - Native HTMLAudioElement untuk local playback
+   - Tidak menggunakan createMediaElementSource()
+   - Media Session / Lock Screen controls
+   - IndexedDB local files
+   - Background-safe architecture
+   - Vinyl tetap berjalan
+   - Visualizer tidak mengambil alih audio
 ========================================================= */
 
 const YOUTUBE_API_KEY =
@@ -135,7 +138,7 @@ function getSongs(){
    SAVE SONG
 ========================================================= */
 
-function saveSong(x){
+function saveSong(song){
 
   return new Promise((resolve,reject)=>{
 
@@ -145,7 +148,7 @@ function saveSong(x){
         "readwrite"
       );
 
-    t.objectStore("songs").put(x);
+    t.objectStore("songs").put(song);
 
     t.oncomplete = resolve;
 
@@ -193,27 +196,33 @@ function removeSong(id){
    HELPERS
 ========================================================= */
 
-function time(s){
+function time(seconds){
 
-  if(!isFinite(s) || s < 0)
+  if(
+    !isFinite(seconds) ||
+    seconds < 0
+  ){
+
     return "0:00";
 
+  }
+
   return (
-    Math.floor(s/60)
+    Math.floor(seconds / 60)
     +
     ":"
     +
     String(
-      Math.floor(s%60)
+      Math.floor(seconds % 60)
     ).padStart(2,"0")
   );
 
 }
 
 
-function esc(x){
+function esc(value){
 
-  return String(x || "")
+  return String(value || "")
     .replace(
       /[&<>"']/g,
       m => ({
@@ -229,7 +238,7 @@ function esc(x){
 
 
 /* =========================================================
-   VINYL SYSTEM
+   VINYL
 ========================================================= */
 
 let vinyl = null;
@@ -237,11 +246,6 @@ let vinylCenter = null;
 
 let canvas = null;
 let ctx = null;
-
-let audioContext = null;
-let analyser = null;
-let audioSource = null;
-let dataArray = null;
 
 
 /* =========================================================
@@ -258,34 +262,43 @@ function initVinyl(){
   if(!cover)
     return;
 
+
   cover.insertAdjacentHTML(
     "beforebegin",
     `
 
-    <div id="vinylWrap">
+      <div id="vinylWrap">
 
-      <div class="vinyl" id="vinyl">
+        <div
+          class="vinyl"
+          id="vinyl"
+        >
 
-        <div id="vinylCenter">
-          ♪
+          <div id="vinylCenter">
+            ♪
+          </div>
+
         </div>
 
       </div>
 
-    </div>
-
-    <canvas id="viz"></canvas>
+      <canvas id="viz"></canvas>
 
     `
   );
 
-  vinyl = $("vinyl");
+
+  vinyl =
+    $("vinyl");
+
 
   vinylCenter =
     $("vinylCenter");
 
+
   canvas =
     $("viz");
+
 
   if(canvas){
 
@@ -307,7 +320,7 @@ function initVinyl(){
 
 
 /* =========================================================
-   UPDATE VINYL COVER
+   VINYL COVER
 ========================================================= */
 
 function updateVinylCover(song){
@@ -315,7 +328,11 @@ function updateVinylCover(song){
   if(!vinylCenter)
     return;
 
-  if(song && song.thumb){
+
+  if(
+    song &&
+    song.thumb
+  ){
 
     vinylCenter.innerHTML = `
 
@@ -330,12 +347,19 @@ function updateVinylCover(song){
 
   }
 
-  const cover = $("cover");
+
+  const cover =
+    $("cover");
+
 
   const img =
     cover?.querySelector("img");
 
-  if(img && img.src){
+
+  if(
+    img &&
+    img.src
+  ){
 
     vinylCenter.innerHTML = `
 
@@ -348,7 +372,8 @@ function updateVinylCover(song){
 
   }else{
 
-    vinylCenter.innerHTML = "♪";
+    vinylCenter.innerHTML =
+      "♪";
 
   }
 
@@ -356,89 +381,28 @@ function updateVinylCover(song){
 
 
 /* =========================================================
-   VINYL PLAY / PAUSE
+   VINYL STATE
 ========================================================= */
 
 function vinylPlay(){
 
-  if(vinyl)
-    vinyl.classList.add("playing");
+  if(vinyl){
+
+    vinyl.classList.add(
+      "playing"
+    );
+
+  }
 
 }
 
 
 function vinylPause(){
 
-  if(vinyl)
-    vinyl.classList.remove("playing");
+  if(vinyl){
 
-}
-
-
-/* =========================================================
-   VISUALIZER
-========================================================= */
-
-/*
-   IMPORTANT:
-
-   Visualizer tidak dibuat pada saat audio mulai
-   sebelum playback berjalan.
-
-   Native <audio> tetap menjadi sumber playback.
-*/
-
-function initVisualizer(){
-
-  if(audioContext)
-    return;
-
-  /*
-     Jangan membuat AudioContext ketika browser
-     sedang background.
-  */
-
-  if(document.visibilityState !== "visible")
-    return;
-
-  try{
-
-    audioContext =
-      new(
-        window.AudioContext ||
-        window.webkitAudioContext
-      )();
-
-    analyser =
-      audioContext.createAnalyser();
-
-    analyser.fftSize = 128;
-
-    analyser.smoothingTimeConstant = .85;
-
-    audioSource =
-      audioContext.createMediaElementSource(
-        audio
-      );
-
-    audioSource.connect(
-      analyser
-    );
-
-    analyser.connect(
-      audioContext.destination
-    );
-
-    dataArray =
-      new Uint8Array(
-        analyser.frequencyBinCount
-      );
-
-  }catch(e){
-
-    console.warn(
-      "Visualizer tidak tersedia:",
-      e
+    vinyl.classList.remove(
+      "playing"
     );
 
   }
@@ -447,25 +411,55 @@ function initVisualizer(){
 
 
 /* =========================================================
-   RESIZE VISUALIZER
+   SAFE VISUALIZER
 ========================================================= */
+
+/*
+   IMPORTANT:
+
+   V2 TIDAK menggunakan:
+
+   audioContext
+   createMediaElementSource()
+   AnalyserNode
+
+   Audio tetap 100% melalui native <audio>.
+
+   Visualizer hanya menggunakan animasi ringan
+   berdasarkan status/currentTime audio.
+
+   Tujuannya agar visualizer tidak menjadi bagian
+   dari jalur playback iOS.
+*/
+
+
+let visualizerFrame = null;
+
 
 function resizeVisualizer(){
 
-  if(!canvas || !ctx)
+  if(
+    !canvas ||
+    !ctx
+  )
     return;
+
 
   const rect =
     canvas.getBoundingClientRect();
 
+
   const dpr =
     window.devicePixelRatio || 1;
+
 
   canvas.width =
     rect.width * dpr;
 
+
   canvas.height =
     rect.height * dpr;
+
 
   ctx.setTransform(
     dpr,
@@ -488,18 +482,41 @@ function drawVisualizer(){
   if(!canvas || !ctx)
     return;
 
-  requestAnimationFrame(
-    drawVisualizer
-  );
+
+  visualizerFrame =
+    requestAnimationFrame(
+      drawVisualizer
+    );
+
+
+  /*
+     Jangan membebani background.
+  */
+
+  if(
+    document.visibilityState !==
+    "visible"
+  ){
+
+    return;
+
+  }
+
 
   const width =
     canvas.clientWidth;
 
+
   const height =
     canvas.clientHeight;
 
-  if(!width || !height)
+
+  if(
+    !width ||
+    !height
+  )
     return;
+
 
   ctx.clearRect(
     0,
@@ -508,7 +525,10 @@ function drawVisualizer(){
     height
   );
 
-  ctx.fillStyle = "#0b0b0b";
+
+  ctx.fillStyle =
+    "#0b0b0b";
+
 
   ctx.fillRect(
     0,
@@ -518,164 +538,128 @@ function drawVisualizer(){
   );
 
 
-  /* ==========================================
-     LOCAL AUDIO
-  ========================================== */
-
-  if(
-    analyser &&
+  const playing =
     !audio.paused &&
-    audio.duration
-  ){
+    audio.readyState >= 2;
 
-    try{
-
-      analyser.getByteFrequencyData(
-        dataArray
-      );
-
-      const bars =
-        dataArray.length;
-
-      const barWidth =
-        width / bars;
-
-      for(
-        let i=0;
-        i<bars;
-        i++
-      ){
-
-        const value =
-          dataArray[i] / 255;
-
-        let barHeight =
-          value * height * .9;
-
-        if(barHeight < 2)
-          barHeight = 2;
-
-        const x =
-          i * barWidth;
-
-        const y =
-          height - barHeight;
-
-        const gradient =
-          ctx.createLinearGradient(
-            0,
-            height,
-            0,
-            0
-          );
-
-        gradient.addColorStop(
-          0,
-          "#777"
-        );
-
-        gradient.addColorStop(
-          .55,
-          "#ddd"
-        );
-
-        gradient.addColorStop(
-          1,
-          "#fff"
-        );
-
-        ctx.fillStyle =
-          gradient;
-
-        ctx.beginPath();
-
-        if(ctx.roundRect){
-
-          ctx.roundRect(
-            x,
-            y,
-            Math.max(
-              1,
-              barWidth - 2
-            ),
-            barHeight,
-            3
-          );
-
-        }else{
-
-          ctx.rect(
-            x,
-            y,
-            Math.max(
-              1,
-              barWidth - 2
-            ),
-            barHeight
-          );
-
-        }
-
-        ctx.fill();
-
-      }
-
-      return;
-
-    }catch(e){}
-
-  }
-
-
-  drawIdleVisualizer(
-    width,
-    height
-  );
-
-}
-
-
-/* =========================================================
-   IDLE VISUALIZER
-========================================================= */
-
-function drawIdleVisualizer(
-  width,
-  height
-){
 
   const bars = 52;
 
   const barWidth =
     width / bars;
 
+
+  const now =
+    Date.now() / 180;
+
+
   for(
-    let i=0;
-    i<bars;
+    let i = 0;
+    i < bars;
     i++
   ){
 
-    const h =
-      2 +
-      Math.abs(
-        Math.sin(
-          i * .65 +
-          Date.now()/1500
-        )
-      ) * 3;
+    let h;
+
+
+    if(playing){
+
+      /*
+         Pseudo spectrum.
+
+         Ini bukan mengambil audio data,
+         sehingga tidak menyentuh jalur audio.
+      */
+
+      const wave =
+        Math.abs(
+          Math.sin(
+            i * .72 +
+            now * .055
+          )
+        );
+
+
+      const wave2 =
+        Math.abs(
+          Math.sin(
+            i * .31 +
+            now * .025
+          )
+        );
+
+
+      h =
+        3 +
+        (
+          wave * .55 +
+          wave2 * .45
+        ) *
+        height *
+        .35;
+
+    }else{
+
+      h =
+        2 +
+        Math.abs(
+          Math.sin(
+            i * .65 +
+            Date.now()/1500
+          )
+        ) * 3;
+
+    }
+
+
+    const x =
+      i * barWidth;
+
+
+    const y =
+      height - h;
+
 
     ctx.fillStyle =
+      playing
+      ?
+      "#ddd"
+      :
       "rgba(255,255,255,.15)";
 
-    ctx.fillRect(
-      i * barWidth,
-      height - h,
-      Math.max(
-        1,
-        barWidth - 2
-      ),
-      h
-    );
+
+    ctx.beginPath();
+
+
+    if(ctx.roundRect){
+
+      ctx.roundRect(
+        x,
+        y,
+        Math.max(
+          1,
+          barWidth - 2
+        ),
+        h,
+        3
+      );
+
+    }else{
+
+      ctx.rect(
+        x,
+        y,
+        Math.max(
+          1,
+          barWidth - 2
+        ),
+        h
+      );
+
+    }
+
+
+    ctx.fill();
 
   }
 
@@ -684,7 +668,6 @@ function drawIdleVisualizer(
 
 /* =========================================================
    MEDIA SESSION
-   iOS LOCK SCREEN
 ========================================================= */
 
 function setupMediaSession(){
@@ -693,71 +676,81 @@ function setupMediaSession(){
     !("mediaSession" in navigator)
   ){
 
-    console.warn(
-      "Media Session API tidak tersedia."
-    );
-
     return;
 
   }
 
 
-  navigator.mediaSession.setActionHandler(
-    "play",
-    () => {
+  try{
 
-      if(
-        current >= 0 &&
-        songs[current]?.type === "local"
-      ){
+    navigator.mediaSession.setActionHandler(
+      "play",
+      () => {
 
-        audio.play().catch(()=>{});
+        if(
+          songs[current]?.type ===
+          "local"
+        ){
 
-      }
+          audio.play()
+            .catch(()=>{});
 
-    }
-  );
-
-
-  navigator.mediaSession.setActionHandler(
-    "pause",
-    () => {
-
-      if(
-        songs[current]?.type === "local"
-      ){
-
-        audio.pause();
+        }
 
       }
+    );
 
-    }
-  );
-
-
-  navigator.mediaSession.setActionHandler(
-    "previoustrack",
-    () => {
-
-      previousSong();
-
-    }
-  );
+  }catch(e){}
 
 
-  navigator.mediaSession.setActionHandler(
-    "nexttrack",
-    () => {
+  try{
 
-      nextSong();
+    navigator.mediaSession.setActionHandler(
+      "pause",
+      () => {
 
-    }
-  );
+        if(
+          songs[current]?.type ===
+          "local"
+        ){
+
+          audio.pause();
+
+        }
+
+      }
+    );
+
+  }catch(e){}
 
 
-  /*
-     Seek handlers
-  */
+  try{
+
+    navigator.mediaSession.setActionHandler(
+      "nexttrack",
+      () => {
+
+        nextSong();
+
+      }
+    );
+
+  }catch(e){}
+
+
+  try{
+
+    navigator.mediaSession.setActionHandler(
+      "previoustrack",
+      () => {
+
+        previousSong();
+
+      }
+    );
+
+  }catch(e){}
+
 
   try{
 
@@ -767,6 +760,7 @@ function setupMediaSession(){
 
         const offset =
           details.seekOffset || 10;
+
 
         audio.currentTime =
           Math.max(
@@ -789,6 +783,7 @@ function setupMediaSession(){
         const offset =
           details.seekOffset || 10;
 
+
         audio.currentTime =
           Math.min(
             audio.duration || Infinity,
@@ -804,7 +799,7 @@ function setupMediaSession(){
 
 
 /* =========================================================
-   UPDATE MEDIA SESSION
+   MEDIA METADATA
 ========================================================= */
 
 function updateMediaSession(song){
@@ -814,55 +809,61 @@ function updateMediaSession(song){
   )
     return;
 
-  if(!song){
 
-    try{
+  try{
+
+    if(!song){
 
       navigator.mediaSession.metadata =
         null;
 
-    }catch(e){}
+      return;
 
-    return;
+    }
 
-  }
 
-  try{
+    const artwork =
+      song.thumb
+      ?
+      [
+        {
+          src:
+            song.thumb,
+
+          sizes:
+            "512x512",
+
+          type:
+            "image/jpeg"
+        }
+      ]
+      :
+      [];
+
 
     navigator.mediaSession.metadata =
       new MediaMetadata({
 
         title:
-          song.title || "Unknown",
+          song.title ||
+          "Unknown",
 
         artist:
-          song.artist || "MyMusic",
+          song.artist ||
+          "MyMusic",
 
         album:
           "MyMusic",
 
         artwork:
-          song.thumb
-          ?
-          [
-            {
-              src:
-                song.thumb,
-              sizes:
-                "512x512",
-              type:
-                "image/jpeg"
-            }
-          ]
-          :
-          []
+          artwork
 
       });
 
   }catch(e){
 
     console.warn(
-      "MediaMetadata error:",
+      "Media Session:",
       e
     );
 
@@ -872,55 +873,39 @@ function updateMediaSession(song){
 
 
 /* =========================================================
-   MEDIA SESSION STATE
+   MEDIA PLAYBACK STATE
 ========================================================= */
 
-function mediaPlaying(){
+function setMediaState(state){
 
   if(
-    "mediaSession" in navigator
-  ){
-
-    try{
-
-      navigator.mediaSession.playbackState =
-        "playing";
-
-    }catch(e){}
-
-  }
-
-}
+    !("mediaSession" in navigator)
+  )
+    return;
 
 
-function mediaPaused(){
+  try{
 
-  if(
-    "mediaSession" in navigator
-  ){
+    navigator.mediaSession.playbackState =
+      state;
 
-    try{
-
-      navigator.mediaSession.playbackState =
-        "paused";
-
-    }catch(e){}
-
-  }
+  }catch(e){}
 
 }
 
 
 /* =========================================================
-   LIBRARY
+   LIBRARY RENDER
 ========================================================= */
 
 function render(){
 
   playlist.innerHTML = "";
 
+
   $("count").textContent =
-    songs.length + " lagu";
+    songs.length +
+    " lagu";
 
 
   if(!songs.length){
@@ -933,131 +918,144 @@ function render(){
   }
 
 
-  songs.forEach((s,i)=>{
+  songs.forEach(
+    (s,i)=>{
 
-    const d =
-      document.createElement("div");
-
-    d.className =
-      "song" +
-      (i === current ? " current" : "");
+      const d =
+        document.createElement("div");
 
 
-    d.innerHTML = `
-
-      <div class="sc">
-
-        ${
-          s.thumb
+      d.className =
+        "song" +
+        (
+          i === current
           ?
-          `<img src="${esc(s.thumb)}">`
+          " current"
           :
-          "♪"
-        }
-
-      </div>
-
-
-      <div class="si">
-
-        <b>
-          ${esc(s.title)}
-        </b>
-
-        <small>
-
-          ${
-            s.type === "yt"
-            ?
-            "▶ YouTube"
-            :
-            "📁 Lokal"
-          }
-
-          ·
-
-          ${esc(s.artist)}
-
-          ${
-            s.duration
-            ?
-            " · " + time(s.duration)
-            :
-            ""
-          }
-
-        </small>
-
-      </div>
-
-
-      <button class="del">
-        ×
-      </button>
-
-    `;
-
-
-    d.onclick = e => {
-
-      if(
-        e.target.closest(".del")
-      )
-        return;
-
-      playSong(i);
-
-    };
-
-
-    d.querySelector(".del")
-      .onclick =
-      async e => {
-
-        e.stopPropagation();
-
-
-        if(
-          current >= 0 &&
-          songs[current]?.id === s.id
-        ){
-
-          audio.pause();
-
-          stopYT();
-
-          vinylPause();
-
-        }
-
-
-        await removeSong(
-          s.id
+          ""
         );
 
 
-        songs =
-          await getSongs();
+      d.innerHTML = `
+
+        <div class="sc">
+
+          ${
+            s.thumb
+            ?
+            `<img src="${esc(s.thumb)}">`
+            :
+            "♪"
+          }
+
+        </div>
 
 
-        if(
-          current >= songs.length
-        ){
+        <div class="si">
 
-          current =
-            songs.length - 1;
-
-        }
+          <b>
+            ${esc(s.title)}
+          </b>
 
 
-        render();
+          <small>
 
-      };
+            ${
+              s.type === "yt"
+              ?
+              "▶ YouTube"
+              :
+              "📁 Lokal"
+            }
+
+            ·
+
+            ${esc(s.artist)}
+
+            ${
+              s.duration
+              ?
+              " · " +
+              time(s.duration)
+              :
+              ""
+            }
+
+          </small>
+
+        </div>
 
 
-    playlist.appendChild(d);
+        <button class="del">
+          ×
+        </button>
 
-  });
+      `;
+
+
+      d.onclick =
+        e => {
+
+          if(
+            e.target.closest(".del")
+          )
+            return;
+
+
+          playSong(i);
+
+        };
+
+
+      d.querySelector(".del")
+        .onclick =
+        async e => {
+
+          e.stopPropagation();
+
+
+          if(
+            current >= 0 &&
+            songs[current]?.id === s.id
+          ){
+
+            audio.pause();
+
+            stopYT();
+
+            vinylPause();
+
+          }
+
+
+          await removeSong(
+            s.id
+          );
+
+
+          songs =
+            await getSongs();
+
+
+          if(
+            current >= songs.length
+          ){
+
+            current =
+              songs.length - 1;
+
+          }
+
+
+          render();
+
+        };
+
+
+      playlist.appendChild(d);
+
+    }
+  );
 
 }
 
@@ -1071,59 +1069,73 @@ function playSong(i){
   if(!songs[i])
     return;
 
+
   current = i;
 
-  const s =
+
+  const song =
     songs[i];
+
 
   render();
 
+
   $("title").textContent =
-    s.title;
+    song.title;
+
 
   $("artist").textContent =
-    s.artist;
-
-  updateVinylCover(s);
-
-  updateMediaSession(s);
+    song.artist;
 
 
-  /* ================================================
+  updateVinylCover(
+    song
+  );
+
+
+  updateMediaSession(
+    song
+  );
+
+
+  /* =======================================================
      YOUTUBE
-  ================================================= */
+  ======================================================= */
 
-  if(s.type === "yt"){
+  if(
+    song.type === "yt"
+  ){
 
     audio.pause();
 
-    mediaPaused();
-
-    playYT(s);
+    playYT(song);
 
     return;
 
   }
 
 
-  /* ================================================
+  /* =======================================================
      LOCAL
-  ================================================= */
+  ======================================================= */
 
   stopYT();
+
 
   vinylPause();
 
 
   /*
-     Revoke previous Blob URL.
+     Release old object URL.
   */
 
   if(url){
 
     try{
 
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(
+        url
+      );
 
     }catch(e){}
 
@@ -1132,7 +1144,7 @@ function playSong(i){
   }
 
 
-  if(!s.blob){
+  if(!song.blob){
 
     $("status").textContent =
       "File tidak tersedia";
@@ -1142,61 +1154,78 @@ function playSong(i){
   }
 
 
+  /*
+     Native Blob URL.
+  */
+
   url =
     URL.createObjectURL(
-      s.blob
+      song.blob
     );
 
 
   /*
      IMPORTANT:
 
-     Native audio playback.
-     Jangan menggunakan fetch(),
-     Web Audio, atau decoder lain.
+     Tidak ada AudioContext.
+
+     Tidak ada Web Audio.
+
+     Tidak ada analyser.
+
+     Hanya HTMLAudioElement.
   */
 
   audio.src = url;
 
+  audio.preload = "auto";
+
   audio.load();
 
 
-  $("cover").innerHTML = "♪";
+  $("cover").innerHTML =
+    "♪";
+
 
   $("status").textContent =
     "Local Music";
 
+
   $("bar").value = 0;
+
 
   $("cur").textContent =
     "0:00";
 
+
   $("dur").textContent =
-    s.duration
+    song.duration
     ?
-    time(s.duration)
+    time(song.duration)
     :
     "0:00";
 
 
   /*
-     Play harus dipanggil langsung
-     dari user interaction.
+     Mulai playback.
   */
 
-  const p =
+  const promise =
     audio.play();
 
-  if(p){
 
-    p.catch(err=>{
+  if(promise){
 
-      console.warn(
-        "Audio play gagal:",
-        err
-      );
+    promise.catch(
+      err => {
 
-    });
+        console.warn(
+          "Playback gagal:",
+          err
+        );
+
+      }
+    );
 
   }
 
@@ -1204,34 +1233,39 @@ function playSong(i){
 
 
 /* =========================================================
-   LOCAL AUDIO EVENTS
+   AUDIO METADATA
 ========================================================= */
 
 audio.addEventListener(
   "loadedmetadata",
   () => {
 
-    $("dur").textContent =
-      time(audio.duration);
-
-    /*
-       Simpan duration ke song
-       agar library tidak selalu
-       menampilkan 0:00.
-    */
-
     if(
-      current >= 0 &&
-      songs[current] &&
-      isFinite(audio.duration)
+      isFinite(
+        audio.duration
+      )
     ){
 
-      songs[current].duration =
-        audio.duration;
+      $("dur").textContent =
+        time(
+          audio.duration
+        );
 
-      saveSong(
+
+      if(
+        current >= 0 &&
         songs[current]
-      ).catch(()=>{});
+      ){
+
+        songs[current].duration =
+          audio.duration;
+
+
+        saveSong(
+          songs[current]
+        ).catch(()=>{});
+
+      }
 
     }
 
@@ -1239,17 +1273,26 @@ audio.addEventListener(
 );
 
 
+/* =========================================================
+   AUDIO TIME
+========================================================= */
+
 audio.addEventListener(
   "timeupdate",
   () => {
 
-    if(!audio.duration)
+    if(
+      !audio.duration
+    )
       return;
 
+
     $("bar").value =
-      audio.currentTime /
-      audio.duration *
-      100;
+      (
+        audio.currentTime /
+        audio.duration
+      ) * 100;
+
 
     $("cur").textContent =
       time(
@@ -1260,49 +1303,32 @@ audio.addEventListener(
 );
 
 
+/* =========================================================
+   AUDIO PLAY
+========================================================= */
+
 audio.addEventListener(
   "play",
-  async () => {
+  () => {
 
     $("play").textContent =
       "⏸";
 
+
     vinylPlay();
 
-    mediaPlaying();
 
-
-    /*
-       Visualizer dibuat hanya ketika
-       halaman sedang aktif.
-    */
-
-    if(
-      document.visibilityState ===
-      "visible"
-    ){
-
-      initVisualizer();
-
-      if(
-        audioContext &&
-        audioContext.state ===
-        "suspended"
-      ){
-
-        try{
-
-          await audioContext.resume();
-
-        }catch(e){}
-
-      }
-
-    }
+    setMediaState(
+      "playing"
+    );
 
   }
 );
 
+
+/* =========================================================
+   AUDIO PAUSE
+========================================================= */
 
 audio.addEventListener(
   "pause",
@@ -1311,13 +1337,21 @@ audio.addEventListener(
     $("play").textContent =
       "▶";
 
+
     vinylPause();
 
-    mediaPaused();
+
+    setMediaState(
+      "paused"
+    );
 
   }
 );
 
+
+/* =========================================================
+   AUDIO ENDED
+========================================================= */
 
 audio.addEventListener(
   "ended",
@@ -1325,7 +1359,11 @@ audio.addEventListener(
 
     vinylPause();
 
-    mediaPaused();
+
+    setMediaState(
+      "none"
+    );
+
 
     nextSong();
 
@@ -1346,6 +1384,7 @@ audio.addEventListener(
       audio.error
     );
 
+
     $("status").textContent =
       "Audio Error";
 
@@ -1354,18 +1393,21 @@ audio.addEventListener(
 
 
 /* =========================================================
-   VISIBILITY
+   VISIBILITY CHANGE
 ========================================================= */
 
 /*
-   PENTING:
+   VERY IMPORTANT:
 
-   JANGAN pause audio di sini.
+   Tidak ada audio.pause() di sini.
 
-   iPhone akan memanggil visibilitychange
-   ketika layar dikunci.
+   Tidak ada audio.load().
 
-   Audio HARUS dibiarkan berjalan.
+   Tidak ada audio.src reset.
+
+   Ketika iPhone mengunci layar,
+   browser boleh mengubah visibility,
+   tetapi audio tidak disentuh.
 */
 
 document.addEventListener(
@@ -1378,26 +1420,18 @@ document.addEventListener(
     ){
 
       /*
-         Saat kembali dari Lock Screen,
-         visualizer boleh dilanjutkan.
+         Tidak memanggil audio.play()
+         secara otomatis.
+
+         Kalau iOS memang mempertahankan
+         playback, audio akan tetap berjalan.
+
+         Kalau sistem sempat menghentikannya,
+         kita tidak memaksa play karena
+         autoplay restriction.
       */
 
-      if(
-        !audio.paused &&
-        audioContext
-      ){
-
-        if(
-          audioContext.state ===
-          "suspended"
-        ){
-
-          audioContext.resume()
-            .catch(()=>{});
-
-        }
-
-      }
+      render();
 
     }
 
@@ -1410,10 +1444,9 @@ document.addEventListener(
 ========================================================= */
 
 /*
-   Jangan pause audio.
+   JANGAN PAUSE AUDIO.
 
-   iOS menggunakan pagehide ketika
-   PWA masuk background.
+   Ini sengaja kosong.
 */
 
 window.addEventListener(
@@ -1421,10 +1454,12 @@ window.addEventListener(
   () => {
 
     /*
-       Sengaja kosong.
+       Do nothing.
 
-       JANGAN:
+       Jangan:
        audio.pause()
+       audio.load()
+       audio.src = ""
     */
 
   }
@@ -1439,387 +1474,141 @@ window.addEventListener(
   "pageshow",
   () => {
 
-    if(
-      !audio.paused &&
-      audioContext &&
-      audioContext.state ===
-      "suspended"
-    ){
-
-      audioContext.resume()
-        .catch(()=>{});
-
-    }
+    render();
 
   }
 );
 
 
 /* =========================================================
-   YOUTUBE API
-========================================================= */
-
-window.onYouTubeIframeAPIReady = () => {
-
-  ytReady = true;
-
-  if(pending){
-
-    createYT(
-      pending
-    );
-
-    pending = null;
-
-  }
-
-};
-
-
-/* =========================================================
-   PLAY YOUTUBE
-========================================================= */
-
-function playYT(song){
-
-  $("title").textContent =
-    song.title;
-
-  $("artist").textContent =
-    song.artist;
-
-  $("status").textContent =
-    "YouTube Online";
-
-  updateVinylCover(song);
-
-  $("cover").innerHTML =
-    song.thumb
-    ?
-    `<img src="${esc(song.thumb)}">`
-    :
-    "▶";
-
-  $("cur").textContent =
-    "0:00";
-
-  $("dur").textContent =
-    "0:00";
-
-  $("bar").value = 0;
-
-
-  if(!ytReady){
-
-    pending = song;
-
-    return;
-
-  }
-
-
-  if(yt){
-
-    yt.loadVideoById(
-      song.videoId
-    );
-
-  }else{
-
-    createYT(song);
-
-  }
-
-}
-
-
-/* =========================================================
-   CREATE YOUTUBE
-========================================================= */
-
-function createYT(song){
-
-  yt =
-    new YT.Player(
-      "youtubePlayer",
-      {
-
-        width:"1",
-        height:"1",
-
-        videoId:
-          song.videoId,
-
-        playerVars:{
-          autoplay:1,
-          playsinline:1,
-          controls:0,
-          rel:0
-        },
-
-        events:{
-
-          onReady:e=>{
-
-            e.target.playVideo();
-
-            startYTTimer();
-
-          },
-
-
-          onStateChange:e=>{
-
-            if(
-              e.data ===
-              YT.PlayerState.PLAYING
-            ){
-
-              $("play").textContent =
-                "⏸";
-
-              vinylPlay();
-
-              startYTTimer();
-
-
-            }else if(
-              e.data ===
-              YT.PlayerState.PAUSED
-            ){
-
-              $("play").textContent =
-                "▶";
-
-              vinylPause();
-
-              stopYTTimer();
-
-
-            }else if(
-              e.data ===
-              YT.PlayerState.ENDED
-            ){
-
-              vinylPause();
-
-              stopYTTimer();
-
-              nextSong();
-
-            }
-
-          },
-
-
-          onError:e=>{
-
-            $("status").textContent =
-              "YouTube Error";
-
-            vinylPause();
-
-            console.log(
-              "YouTube error:",
-              e.data
-            );
-
-          }
-
-        }
-
-      }
-    );
-
-}
-
-
-/* =========================================================
-   YOUTUBE TIMER
-========================================================= */
-
-function startYTTimer(){
-
-  stopYTTimer();
-
-  ytTimer =
-    setInterval(
-      ()=>{
-
-        if(!yt)
-          return;
-
-        try{
-
-          const cur =
-            yt.getCurrentTime();
-
-          const dur =
-            yt.getDuration();
-
-          if(dur > 0){
-
-            $("cur").textContent =
-              time(cur);
-
-            $("dur").textContent =
-              time(dur);
-
-            $("bar").value =
-              cur / dur * 100;
-
-          }
-
-        }catch(e){}
-
-      },
-      500
-    );
-
-}
-
-
-function stopYTTimer(){
-
-  if(ytTimer){
-
-    clearInterval(
-      ytTimer
-    );
-
-    ytTimer = null;
-
-  }
-
-}
-
-
-/* =========================================================
-   STOP YOUTUBE
-========================================================= */
-
-function stopYT(){
-
-  stopYTTimer();
-
-  if(yt){
-
-    try{
-
-      yt.stopVideo();
-
-    }catch(e){}
-
-  }
-
-}
-
-
-/* =========================================================
    PROGRESS BAR
 ========================================================= */
 
-$("bar").oninput = () => {
+$("bar").oninput =
+  () => {
 
-  if(
-    songs[current]?.type === "yt" &&
-    yt
-  ){
+    if(
+      songs[current]?.type ===
+      "yt" &&
+      yt
+    ){
 
-    const dur =
-      yt.getDuration();
+      const duration =
+        yt.getDuration();
 
-    if(dur){
 
-      yt.seekTo(
-        $("bar").value /
-        100 *
-        dur,
-        true
-      );
+      if(duration){
+
+        yt.seekTo(
+          (
+            $("bar").value /
+            100
+          ) *
+          duration,
+          true
+        );
+
+      }
+
+      return;
 
     }
 
-  }else if(
-    audio.duration
-  ){
 
-    audio.currentTime =
-      $("bar").value /
-      100 *
-      audio.duration;
+    if(
+      audio.duration
+    ){
 
-  }
+      audio.currentTime =
+        (
+          $("bar").value /
+          100
+        ) *
+        audio.duration;
 
-};
+    }
+
+  };
 
 
 /* =========================================================
    PLAY BUTTON
 ========================================================= */
 
-$("play").onclick = () => {
-
-  if(current < 0){
-
-    if(songs.length)
-      playSong(0);
-
-    return;
-
-  }
-
-
-  const s =
-    songs[current];
-
-
-  if(s.type === "yt"){
-
-    if(!yt)
-      return;
-
-    const state =
-      yt.getPlayerState();
+$("play").onclick =
+  () => {
 
     if(
-      state ===
-      YT.PlayerState.PLAYING
+      current < 0
     ){
 
-      yt.pauseVideo();
+      if(songs.length)
+        playSong(0);
 
-    }else{
-
-      yt.playVideo();
+      return;
 
     }
 
-    return;
 
-  }
+    const song =
+      songs[current];
 
 
-  /*
-     LOCAL
-  */
+    if(
+      song.type === "yt"
+    ){
 
-  if(audio.paused){
+      if(!yt)
+        return;
 
-    audio.play()
-      .catch(()=>{});
 
-  }else{
+      const state =
+        yt.getPlayerState();
 
-    audio.pause();
 
-  }
+      if(
+        state ===
+        YT.PlayerState.PLAYING
+      ){
 
-};
+        yt.pauseVideo();
+
+      }else{
+
+        yt.playVideo();
+
+      }
+
+
+      return;
+
+    }
+
+
+    /*
+       LOCAL
+
+       Native audio.
+    */
+
+    if(
+      audio.paused
+    ){
+
+      audio.play()
+        .catch(()=>{});
+
+    }else{
+
+      audio.pause();
+
+    }
+
+  };
 
 
 /* =========================================================
-   NEXT
+   NEXT BUTTON
 ========================================================= */
 
 $("next").onclick =
@@ -1827,7 +1616,7 @@ $("next").onclick =
 
 
 /* =========================================================
-   PREVIOUS
+   PREVIOUS BUTTON
 ========================================================= */
 
 $("prev").onclick =
@@ -1841,12 +1630,13 @@ function previousSong(){
 
 
   /*
-     Kalau lagu sudah berjalan > 3 detik,
-     tombol Previous kembali ke awal lagu.
+     Jika sudah lebih dari 3 detik,
+     kembali ke awal lagu.
   */
 
   if(
-    songs[current]?.type === "local" &&
+    songs[current]?.type ===
+    "local" &&
     audio.currentTime > 3
   ){
 
@@ -1857,12 +1647,13 @@ function previousSong(){
   }
 
 
-  let i =
+  const i =
     current <= 0
     ?
     songs.length - 1
     :
     current - 1;
+
 
   playSong(i);
 
@@ -1873,48 +1664,55 @@ function previousSong(){
    SHUFFLE
 ========================================================= */
 
-$("shuffle").onclick = () => {
+$("shuffle").onclick =
+  () => {
 
-  shuffle = !shuffle;
+    shuffle =
+      !shuffle;
 
-  $("shuffle")
-    .classList.toggle(
-      "on",
-      shuffle
-    );
 
-};
+    $("shuffle")
+      .classList.toggle(
+        "on",
+        shuffle
+      );
+
+  };
 
 
 /* =========================================================
    REPEAT
 ========================================================= */
 
-$("repeat").onclick = () => {
+$("repeat").onclick =
+  () => {
 
-  repeat = !repeat;
+    repeat =
+      !repeat;
 
-  $("repeat")
-    .classList.toggle(
-      "on",
-      repeat
-    );
 
-};
+    $("repeat")
+      .classList.toggle(
+        "on",
+        repeat
+      );
+
+  };
 
 
 /* =========================================================
-   ADD BUTTON
+   ADD PANEL
 ========================================================= */
 
-$("addBtn").onclick = () => {
+$("addBtn").onclick =
+  () => {
 
-  $("panel")
-    .classList.toggle(
-      "open"
-    );
+    $("panel")
+      .classList.toggle(
+        "open"
+      );
 
-};
+  };
 
 
 /* =========================================================
@@ -1932,7 +1730,9 @@ function nextSong(){
 
   if(shuffle){
 
-    if(songs.length === 1){
+    if(
+      songs.length === 1
+    ){
 
       i = current;
 
@@ -1969,8 +1769,7 @@ function nextSong(){
       }else{
 
         /*
-           Tetap di lagu terakhir
-           seperti behavior sebelumnya.
+           Tetap pada lagu terakhir.
         */
 
         i =
@@ -1991,7 +1790,7 @@ function nextSong(){
 
 
 /* =========================================================
-   LOCAL FILE
+   LOCAL FILE IMPORT
 ========================================================= */
 
 $("files").onchange =
@@ -2004,13 +1803,8 @@ $("files").onchange =
 
 
     for(
-      const f of files
+      const file of files
     ){
-
-      /*
-         Hanya simpan format audio/video
-         yang memang dipilih user.
-      */
 
       await saveSong({
 
@@ -2021,7 +1815,7 @@ $("files").onchange =
           "local",
 
         title:
-          f.name.replace(
+          file.name.replace(
             /\.[^/.]+$/,
             ""
           ),
@@ -2030,7 +1824,10 @@ $("files").onchange =
           "Local File",
 
         blob:
-          f
+          file,
+
+        duration:
+          0
 
       });
 
@@ -2044,7 +1841,8 @@ $("files").onchange =
     render();
 
 
-    e.target.value = "";
+    e.target.value =
+      "";
 
   };
 
@@ -2059,49 +1857,62 @@ function getCache(key){
 
     const r =
       db
-        .transaction("searchCache")
-        .objectStore("searchCache")
+        .transaction(
+          "searchCache"
+        )
+        .objectStore(
+          "searchCache"
+        )
         .get(key);
 
 
-    r.onsuccess = () => {
+    r.onsuccess =
+      () => {
 
-      const x =
-        r.result;
+        const x =
+          r.result;
 
 
-      if(!x){
+        if(!x){
+
+          resolve(null);
+
+          return;
+
+        }
+
+
+        const age =
+          Date.now() -
+          x.time;
+
+
+        if(
+          age >
+          86400000
+        ){
+
+          deleteCache(key);
+
+          resolve(null);
+
+        }else{
+
+          resolve(
+            x.data
+          );
+
+        }
+
+      };
+
+
+    r.onerror =
+      () => {
 
         resolve(null);
 
-        return;
-
-      }
-
-
-      const age =
-        Date.now() - x.time;
-
-
-      if(age > 86400000){
-
-        deleteCache(key);
-
-        resolve(null);
-
-      }else{
-
-        resolve(
-          x.data
-        );
-
-      }
-
-    };
-
-
-    r.onerror = () =>
-      resolve(null);
+      };
 
   });
 
@@ -2130,12 +1941,14 @@ function saveCache(
       "searchCache"
     ).put({
 
-      key:key,
+      key:
+        key,
 
       time:
         Date.now(),
 
-      data:data
+      data:
+        data
 
     });
 
@@ -2195,7 +2008,9 @@ async function search(){
   try{
 
     const cached =
-      await getCache(key);
+      await getCache(
+        key
+      );
 
 
     if(cached){
@@ -2203,9 +2018,11 @@ async function search(){
       $("results").innerHTML =
         '<small style="color:#777">⚡ Dari cache</small>';
 
+
       showResults(
         cached
       );
+
 
       return;
 
@@ -2220,6 +2037,7 @@ async function search(){
 
       $("results").innerHTML =
         "❌ API key belum diisi.";
+
 
       return;
 
@@ -2262,21 +2080,22 @@ async function search(){
     );
 
 
-    const r =
+    const response =
       await fetch(u);
 
 
-    if(!r.ok){
+    if(!response.ok){
 
       throw new Error(
-        "HTTP " + r.status
+        "HTTP " +
+        response.status
       );
 
     }
 
 
     const data =
-      await r.json();
+      await response.json();
 
 
     const results =
@@ -2327,6 +2146,7 @@ async function search(){
 
     console.error(e);
 
+
     $("results").innerHTML =
       "❌ Gagal: " +
       esc(e.message);
@@ -2342,7 +2162,8 @@ async function search(){
 
 function closeResults(){
 
-  $("results").innerHTML = "";
+  $("results").innerHTML =
+    "";
 
 }
 
@@ -2351,7 +2172,9 @@ function closeResults(){
    SHOW RESULTS
 ========================================================= */
 
-function showResults(results){
+function showResults(
+  results
+){
 
   $("results").innerHTML = `
 
@@ -2361,7 +2184,9 @@ function showResults(results){
         Hasil YouTube
       </span>
 
-      <button id="closeResults">
+      <button
+        id="closeResults"
+      >
         ✕
       </button>
 
@@ -2375,90 +2200,97 @@ function showResults(results){
     closeResults;
 
 
-  results.forEach(song=>{
+  results.forEach(
+    song => {
 
-    const d =
-      document.createElement("div");
-
-
-    d.className =
-      "result";
-
-
-    d.innerHTML = `
-
-      <img
-        src="${esc(song.thumb)}"
-      >
-
-
-      <div class="ri">
-
-        <b>
-          ${esc(song.title)}
-        </b>
-
-
-        <small>
-          ${esc(song.artist)}
-        </small>
-
-
-        <button class="p">
-          ▶ Play
-        </button>
-
-
-        <button class="a">
-          ＋ Playlist
-        </button>
-
-      </div>
-
-    `;
-
-
-    d.querySelector(".p")
-      .onclick = () => {
-
-        playYT(song);
-
-        closeResults();
-
-      };
-
-
-    d.querySelector(".a")
-      .onclick =
-      async () => {
-
-        await saveSong(
-          song
+      const d =
+        document.createElement(
+          "div"
         );
 
 
-        songs =
-          await getSongs();
+      d.className =
+        "result";
 
 
-        render();
+      d.innerHTML = `
+
+        <img
+          src="${esc(song.thumb)}"
+        >
 
 
-        closeResults();
+        <div class="ri">
 
-      };
+          <b>
+            ${esc(song.title)}
+          </b>
 
 
-    $("results")
-      .appendChild(d);
+          <small>
+            ${esc(song.artist)}
+          </small>
 
-  });
+
+          <button class="p">
+            ▶ Play
+          </button>
+
+
+          <button class="a">
+            ＋ Playlist
+          </button>
+
+        </div>
+
+      `;
+
+
+      d.querySelector(".p")
+        .onclick =
+        () => {
+
+          playYT(song);
+
+          closeResults();
+
+        };
+
+
+      d.querySelector(".a")
+        .onclick =
+        async () => {
+
+          await saveSong(
+            song
+          );
+
+
+          songs =
+            await getSongs();
+
+
+          render();
+
+
+          closeResults();
+
+        };
+
+
+      $("results")
+        .appendChild(
+          d
+        );
+
+    }
+  );
 
 }
 
 
 /* =========================================================
-   SEARCH
+   SEARCH BUTTON
 ========================================================= */
 
 $("searchBtn").onclick =
@@ -2468,14 +2300,321 @@ $("searchBtn").onclick =
 $("query").onkeydown =
   e => {
 
-    if(e.key === "Enter")
+    if(
+      e.key ===
+      "Enter"
+    ){
+
       search();
+
+    }
 
   };
 
 
 /* =========================================================
-   CLEAR
+   YOUTUBE
+========================================================= */
+
+window.onYouTubeIframeAPIReady =
+  () => {
+
+    ytReady = true;
+
+
+    if(pending){
+
+      createYT(
+        pending
+      );
+
+
+      pending = null;
+
+    }
+
+  };
+
+
+/* =========================================================
+   PLAY YOUTUBE
+========================================================= */
+
+function playYT(song){
+
+  $("title").textContent =
+    song.title;
+
+
+  $("artist").textContent =
+    song.artist;
+
+
+  $("status").textContent =
+    "YouTube Online";
+
+
+  updateVinylCover(
+    song
+  );
+
+
+  updateMediaSession(
+    song
+  );
+
+
+  $("cover").innerHTML =
+    song.thumb
+    ?
+    `<img src="${esc(song.thumb)}">`
+    :
+    "▶";
+
+
+  $("cur").textContent =
+    "0:00";
+
+
+  $("dur").textContent =
+    "0:00";
+
+
+  $("bar").value =
+    0;
+
+
+  if(!ytReady){
+
+    pending =
+      song;
+
+    return;
+
+  }
+
+
+  if(yt){
+
+    yt.loadVideoById(
+      song.videoId
+    );
+
+  }else{
+
+    createYT(
+      song
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   CREATE YOUTUBE
+========================================================= */
+
+function createYT(song){
+
+  yt =
+    new YT.Player(
+      "youtubePlayer",
+      {
+
+        width:"1",
+        height:"1",
+
+        videoId:
+          song.videoId,
+
+        playerVars:{
+          autoplay:1,
+          playsinline:1,
+          controls:0,
+          rel:0
+        },
+
+        events:{
+
+          onReady:e => {
+
+            e.target.playVideo();
+
+            startYTTimer();
+
+          },
+
+
+          onStateChange:e => {
+
+            if(
+              e.data ===
+              YT.PlayerState.PLAYING
+            ){
+
+              $("play").textContent =
+                "⏸";
+
+
+              vinylPlay();
+
+
+              startYTTimer();
+
+
+            }else if(
+              e.data ===
+              YT.PlayerState.PAUSED
+            ){
+
+              $("play").textContent =
+                "▶";
+
+
+              vinylPause();
+
+
+              stopYTTimer();
+
+
+            }else if(
+              e.data ===
+              YT.PlayerState.ENDED
+            ){
+
+              vinylPause();
+
+
+              stopYTTimer();
+
+
+              nextSong();
+
+            }
+
+          },
+
+
+          onError:e => {
+
+            $("status").textContent =
+              "YouTube Error";
+
+
+            vinylPause();
+
+
+            console.log(
+              "YouTube error:",
+              e.data
+            );
+
+          }
+
+        }
+
+      }
+    );
+
+}
+
+
+/* =========================================================
+   YOUTUBE TIMER
+========================================================= */
+
+function startYTTimer(){
+
+  stopYTTimer();
+
+
+  ytTimer =
+    setInterval(
+      () => {
+
+        if(!yt)
+          return;
+
+
+        try{
+
+          const cur =
+            yt.getCurrentTime();
+
+
+          const dur =
+            yt.getDuration();
+
+
+          if(
+            dur > 0
+          ){
+
+            $("cur").textContent =
+              time(cur);
+
+
+            $("dur").textContent =
+              time(dur);
+
+
+            $("bar").value =
+              (
+                cur /
+                dur
+              ) * 100;
+
+          }
+
+        }catch(e){}
+
+      },
+      500
+    );
+
+}
+
+
+function stopYTTimer(){
+
+  if(ytTimer){
+
+    clearInterval(
+      ytTimer
+    );
+
+    ytTimer = null;
+
+  }
+
+}
+
+
+/* =========================================================
+   STOP YOUTUBE
+========================================================= */
+
+function stopYT(){
+
+  stopYTTimer();
+
+
+  if(yt){
+
+    try{
+
+      yt.stopVideo();
+
+    }catch(e){}
+
+  }
+
+}
+
+
+/* =========================================================
+   CLEAR LIBRARY
 ========================================================= */
 
 $("clear").onclick =
@@ -2501,74 +2640,81 @@ $("clear").onclick =
     ).clear();
 
 
-    t.oncomplete = () => {
+    t.oncomplete =
+      () => {
 
-      songs = [];
+        songs = [];
 
-      current = -1;
-
-
-      stopYT();
+        current = -1;
 
 
-      audio.pause();
+        stopYT();
 
 
-      vinylPause();
+        audio.pause();
 
 
-      if(url){
-
-        try{
-
-          URL.revokeObjectURL(
-            url
-          );
-
-        }catch(e){}
-
-        url = null;
-
-      }
+        vinylPause();
 
 
-      render();
+        if(url){
+
+          try{
+
+            URL.revokeObjectURL(
+              url
+            );
+
+          }catch(e){}
+
+          url = null;
+
+        }
 
 
-      $("title").textContent =
-        "Belum ada lagu";
+        render();
 
 
-      $("artist").textContent =
-        "Tambahkan musik untuk mulai";
+        $("title").textContent =
+          "Belum ada lagu";
 
 
-      $("status").textContent =
-        "Ready";
+        $("artist").textContent =
+          "Tambahkan musik untuk mulai";
 
 
-      $("cur").textContent =
-        "0:00";
+        $("status").textContent =
+          "Ready";
 
 
-      $("dur").textContent =
-        "0:00";
+        $("cur").textContent =
+          "0:00";
 
 
-      $("bar").value = 0;
+        $("dur").textContent =
+          "0:00";
 
 
-      updateMediaSession(null);
+        $("bar").value =
+          0;
 
-      updateVinylCover(null);
 
-    };
+        updateMediaSession(
+          null
+        );
+
+
+        updateVinylCover(
+          null
+        );
+
+      };
 
   };
 
 
 /* =========================================================
-   START
+   START APPLICATION
 ========================================================= */
 
 openDB()
@@ -2594,12 +2740,13 @@ openDB()
     }
   )
   .catch(
-    e => {
+    error => {
 
       console.error(
         "Database error:",
-        e
+        error
       );
+
 
       $("status").textContent =
         "Database Error";
