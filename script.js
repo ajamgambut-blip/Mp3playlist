@@ -7,6 +7,7 @@
    INDEXEDDB
    MEDIA SESSION
    LOCK SCREEN PLAYBACK
+   COBALT DOWNLOAD
 
    IMPORTANT
    ---------------------------------------------------------
@@ -15,11 +16,24 @@
    - No createMediaElementSource()
    - No AnalyserNode
    - Local playback remains background-safe
+   - Cobalt digunakan untuk download audio YouTube
 ========================================================= */
 
 
+/* =========================================================
+   YOUTUBE API
+========================================================= */
+
 const YOUTUBE_API_KEY =
   "AIzaSyCuRrZuamgjKNLBCN_tfTdfmLJsuuno78c";
+
+
+/* =========================================================
+   COBALT API
+========================================================= */
+
+const COBALT_API =
+  "https://mymusic-cobalt.onrender.com/";
 
 
 /* =========================================================
@@ -759,7 +773,6 @@ function drawVisualizer(){
 
 /* =========================================================
    MEDIA SESSION
-   LOCK SCREEN
 ========================================================= */
 
 function setupMediaSession(){
@@ -772,10 +785,6 @@ function setupMediaSession(){
 
   }
 
-
-  /* -------------------------------------------------------
-     PLAY
-  ------------------------------------------------------- */
 
   try{
 
@@ -840,10 +849,6 @@ function setupMediaSession(){
   }
 
 
-  /* -------------------------------------------------------
-     PAUSE
-  ------------------------------------------------------- */
-
   try{
 
     navigator.mediaSession.setActionHandler(
@@ -873,10 +878,6 @@ function setupMediaSession(){
   }catch(error){}
 
 
-  /* -------------------------------------------------------
-     NEXT
-  ------------------------------------------------------- */
-
   try{
 
     navigator.mediaSession.setActionHandler(
@@ -900,10 +901,6 @@ function setupMediaSession(){
 
   }catch(error){}
 
-
-  /* -------------------------------------------------------
-     PREVIOUS
-  ------------------------------------------------------- */
 
   try{
 
@@ -929,10 +926,6 @@ function setupMediaSession(){
   }catch(error){}
 
 
-  /* -------------------------------------------------------
-     REMOVE ±10 SECOND BUTTONS
-  ------------------------------------------------------- */
-
   try{
 
     navigator.mediaSession.setActionHandler(
@@ -952,12 +945,6 @@ function setupMediaSession(){
 
   }catch(error){}
 
-
-  /* -------------------------------------------------------
-     OPTIONAL SEEK FROM LOCK SCREEN
-     If supported by iOS, this is a seek bar action,
-     not the ±10 sec buttons.
-  ------------------------------------------------------- */
 
   try{
 
@@ -1003,7 +990,6 @@ function setupMediaSession(){
 
 /* =========================================================
    MEDIA NEXT
-   LOCK SCREEN VERSION
 ========================================================= */
 
 function mediaNextSong(){
@@ -1075,7 +1061,6 @@ function mediaNextSong(){
 
 /* =========================================================
    MEDIA PREVIOUS
-   LOCK SCREEN VERSION
 ========================================================= */
 
 function mediaPreviousSong(){
@@ -1095,11 +1080,6 @@ function mediaPreviousSong(){
 
   }
 
-
-  /*
-     LOCK SCREEN PREVIOUS:
-     selalu pindah ke lagu sebelumnya.
-  */
 
   playSong(
     index
@@ -1533,10 +1513,6 @@ function playSong(index){
   vinylPause();
 
 
-  /*
-     Release previous Blob URL.
-  */
-
   if(url){
 
     try{
@@ -1565,20 +1541,11 @@ function playSong(index){
   }
 
 
-  /*
-     Native Blob URL.
-  */
-
   url =
     URL.createObjectURL(
       song.blob
     );
 
-
-  /*
-     IMPORTANT:
-     Native HTMLAudioElement only.
-  */
 
   audio.pause();
 
@@ -1638,10 +1605,6 @@ function playSong(index){
   }
 
 
-  /*
-     Start native playback.
-  */
-
   const promise =
     audio.play();
 
@@ -1665,7 +1628,7 @@ function playSong(index){
 
 
 /* =========================================================
-   AUDIO LOADED METADATA
+   AUDIO EVENTS
 ========================================================= */
 
 audio.addEventListener(
@@ -1712,10 +1675,6 @@ audio.addEventListener(
 );
 
 
-/* =========================================================
-   AUDIO TIME UPDATE
-========================================================= */
-
 audio.addEventListener(
   "timeupdate",
   () => {
@@ -1756,10 +1715,6 @@ audio.addEventListener(
 );
 
 
-/* =========================================================
-   AUDIO PLAY
-========================================================= */
-
 audio.addEventListener(
   "play",
   () => {
@@ -1785,10 +1740,6 @@ audio.addEventListener(
   }
 );
 
-
-/* =========================================================
-   AUDIO PAUSE
-========================================================= */
 
 audio.addEventListener(
   "pause",
@@ -1816,10 +1767,6 @@ audio.addEventListener(
 );
 
 
-/* =========================================================
-   AUDIO ENDED
-========================================================= */
-
 audio.addEventListener(
   "ended",
   () => {
@@ -1837,10 +1784,6 @@ audio.addEventListener(
   }
 );
 
-
-/* =========================================================
-   AUDIO ERROR
-========================================================= */
 
 audio.addEventListener(
   "error",
@@ -1864,23 +1807,12 @@ audio.addEventListener(
 
 
 /* =========================================================
-   VISIBILITY CHANGE
+   VISIBILITY / PAGE EVENTS
 ========================================================= */
 
 document.addEventListener(
   "visibilitychange",
   () => {
-
-    /*
-       VERY IMPORTANT:
-
-       Jangan pause audio.
-       Jangan load audio.
-       Jangan reset src.
-
-       Lock Screen/background playback
-       tidak boleh disentuh.
-    */
 
     if(
       document.visibilityState ===
@@ -1889,10 +1821,6 @@ document.addEventListener(
 
       render();
 
-
-      /*
-         Jangan memaksa audio.play().
-      */
 
       if(
         !audio.paused
@@ -1910,31 +1838,17 @@ document.addEventListener(
 );
 
 
-/* =========================================================
-   PAGE HIDE
-========================================================= */
-
 window.addEventListener(
   "pagehide",
   () => {
 
     /*
-       JANGAN melakukan:
-
-       audio.pause()
-       audio.load()
-       audio.src = ""
-
-       Background playback tetap berjalan.
+       Jangan pause audio.
     */
 
   }
 );
 
-
-/* =========================================================
-   PAGE SHOW
-========================================================= */
 
 window.addEventListener(
   "pageshow",
@@ -1954,10 +1868,6 @@ if($("bar")){
 
   $("bar").oninput =
     () => {
-
-      /*
-         YouTube
-      */
 
       if(
         songs[current]?.type ===
@@ -1991,10 +1901,6 @@ if($("bar")){
 
       }
 
-
-      /*
-         Local
-      */
 
       if(
         audio.duration
@@ -2045,10 +1951,6 @@ if($("play")){
         songs[current];
 
 
-      /*
-         YOUTUBE
-      */
-
       if(
         song.type === "yt"
       ){
@@ -2084,10 +1986,6 @@ if($("play")){
       }
 
 
-      /*
-         LOCAL
-      */
-
       if(
         audio.paused
       ){
@@ -2117,7 +2015,7 @@ if($("play")){
 
 
 /* =========================================================
-   NEXT BUTTON
+   NEXT / PREVIOUS
 ========================================================= */
 
 if($("next")){
@@ -2128,10 +2026,6 @@ if($("next")){
 }
 
 
-/* =========================================================
-   PREVIOUS BUTTON
-========================================================= */
-
 if($("prev")){
 
   $("prev").onclick =
@@ -2140,22 +2034,11 @@ if($("prev")){
 }
 
 
-/* =========================================================
-   PREVIOUS — APP BUTTON
-========================================================= */
-
 function previousSong(){
 
   if(!songs.length)
     return;
 
-
-  /*
-     Jika lagu lokal sudah berjalan
-     lebih dari 3 detik,
-     tombol Previous di dalam aplikasi
-     kembali ke awal lagu.
-  */
 
   if(
     songs[current]?.type ===
@@ -2270,10 +2153,6 @@ function nextSong(){
   let index;
 
 
-  /*
-     SHUFFLE
-  */
-
   if(shuffle){
 
     if(
@@ -2315,10 +2194,6 @@ function nextSong(){
           0;
 
       }else{
-
-        /*
-           Tetap lagu terakhir.
-        */
 
         return;
 
@@ -2576,10 +2451,6 @@ async function search(){
 
   try{
 
-    /*
-       CACHE
-    */
-
     const cached =
       await getCache(
         key
@@ -2601,10 +2472,6 @@ async function search(){
 
     }
 
-
-    /*
-       API KEY
-    */
 
     if(
       !YOUTUBE_API_KEY ||
@@ -2766,6 +2633,411 @@ function closeResults(){
 
 
 /* =========================================================
+   COBALT DOWNLOAD
+   BAGIAN UTAMA FITUR DOWNLOAD
+========================================================= */
+
+async function downloadCobalt(song, button){
+
+  if(
+    !song ||
+    !song.videoId
+  ){
+
+    return;
+
+  }
+
+
+  const originalText =
+    button
+    ?
+    button.textContent
+    :
+    "";
+
+
+  try{
+
+    if(button){
+
+      button.disabled =
+        true;
+
+      button.textContent =
+        "⏳ Memproses...";
+
+    }
+
+
+    const youtubeURL =
+      "https://www.youtube.com/watch?v=" +
+      encodeURIComponent(
+        song.videoId
+      );
+
+
+    /*
+       Cobalt API v11+
+    */
+
+    const response =
+      await fetch(
+        COBALT_API,
+        {
+
+          method:
+            "POST",
+
+          headers:{
+
+            "Accept":
+              "application/json",
+
+            "Content-Type":
+              "application/json"
+
+          },
+
+          body:
+            JSON.stringify({
+
+              url:
+                youtubeURL,
+
+              downloadMode:
+                "audio",
+
+              audioFormat:
+                "mp3",
+
+              audioBitrate:
+                "128",
+
+              filenameStyle:
+                "basic",
+
+              disableMetadata:
+                false
+
+            })
+
+        }
+      );
+
+
+    if(!response.ok){
+
+      throw new Error(
+        "Cobalt HTTP " +
+        response.status
+      );
+
+    }
+
+
+    const data =
+      await response.json();
+
+
+    console.log(
+      "Cobalt response:",
+      data
+    );
+
+
+    if(
+      data.status ===
+      "error"
+    ){
+
+      throw new Error(
+        data.error?.code ||
+        "Cobalt gagal memproses video"
+      );
+
+    }
+
+
+    /*
+       Cobalt v11:
+       tunnel / redirect
+    */
+
+    if(
+      data.status !==
+        "tunnel" &&
+      data.status !==
+        "redirect"
+    ){
+
+      throw new Error(
+        "Status Cobalt: " +
+        data.status
+      );
+
+    }
+
+
+    if(!data.url){
+
+      throw new Error(
+        "URL hasil download tidak ditemukan"
+      );
+
+    }
+
+
+    if(button){
+
+      button.textContent =
+        "⬇ Mengambil MP3...";
+
+    }
+
+
+    /*
+       Ambil file sebagai Blob.
+
+       Jika Cobalt mengembalikan
+       tunnel URL, browser dapat
+       mengambil file tersebut.
+    */
+
+    const fileResponse =
+      await fetch(
+        data.url
+      );
+
+
+    if(!fileResponse.ok){
+
+      throw new Error(
+        "Gagal mengambil file MP3 (" +
+        fileResponse.status +
+        ")"
+      );
+
+    }
+
+
+    const blob =
+      await fileResponse.blob();
+
+
+    if(
+      !blob ||
+      !blob.size
+    ){
+
+      throw new Error(
+        "File MP3 kosong"
+      );
+
+    }
+
+
+    /*
+       Pastikan MIME type.
+    */
+
+    const mp3Blob =
+      blob.type ===
+        "audio/mpeg"
+      ?
+      blob
+      :
+      new Blob(
+        [blob],
+        {
+          type:
+            "audio/mpeg"
+        }
+      );
+
+
+    /*
+       Simpan sebagai lagu LOCAL.
+       Dengan begitu:
+
+       - IndexedDB
+       - offline
+       - background playback
+       - lock screen
+       - Media Session
+
+       tetap menggunakan sistem
+       lokal yang sudah ada.
+    */
+
+    const downloadedSong = {
+
+      id:
+        "cobalt_" +
+        song.videoId,
+
+      type:
+        "local",
+
+      source:
+        "cobalt",
+
+      videoId:
+        song.videoId,
+
+      title:
+        song.title,
+
+      artist:
+        song.artist,
+
+      thumb:
+        song.thumb,
+
+      blob:
+        mp3Blob,
+
+      duration:
+        song.duration || 0
+
+    };
+
+
+    /*
+       Jika sudah pernah didownload,
+       put() akan mengganti file lama.
+    */
+
+    await saveSong(
+      downloadedSong
+    );
+
+
+    /*
+       Refresh library.
+    */
+
+    songs =
+      await getSongs();
+
+
+    render();
+
+
+    /*
+       Beri tahu user.
+    */
+
+    if(button){
+
+      button.textContent =
+        "✓ Tersimpan";
+
+    }
+
+
+    if($("status")){
+
+      $("status").textContent =
+        "MP3 tersimpan di Library";
+
+    }
+
+
+    /*
+       Jangan langsung memainkan.
+       User tetap menentukan apakah
+       mau Play atau tidak.
+    */
+
+    return downloadedSong;
+
+
+  }catch(error){
+
+    console.error(
+      "Cobalt download error:",
+      error
+    );
+
+
+    if(button){
+
+      button.textContent =
+        "❌ Gagal";
+
+    }
+
+
+    if($("status")){
+
+      $("status").textContent =
+        "Download gagal";
+
+    }
+
+
+    alert(
+      "Download gagal:\n\n" +
+      error.message
+    );
+
+
+    return null;
+
+
+  }finally{
+
+    if(button){
+
+      setTimeout(
+        () => {
+
+          if(
+            button &&
+            document.body.contains(
+              button
+            )
+          ){
+
+            button.disabled =
+              false;
+
+
+            /*
+               Jangan mengembalikan
+               teks jika sudah sukses.
+            */
+
+            if(
+              button.textContent ===
+              "⏳ Memproses..." ||
+              button.textContent ===
+              "⬇ Mengambil MP3..." ||
+              button.textContent ===
+              "❌ Gagal"
+            ){
+
+              button.textContent =
+                originalText ||
+                "⬇ Download";
+
+            }
+
+          }
+
+        },
+        2500
+      );
+
+    }
+
+  }
+
+}
+
+
+/* =========================================================
    SHOW YOUTUBE RESULTS
 ========================================================= */
 
@@ -2831,14 +3103,23 @@ function showResults(results){
           </small>
 
 
-          <button class="p">
-            ▶ Play
-          </button>
+          <div class="result-actions">
+
+            <button class="p">
+              ▶ Play
+            </button>
 
 
-          <button class="a">
-            ＋ Playlist
-          </button>
+            <button class="a">
+              ＋ Playlist
+            </button>
+
+
+            <button class="d">
+              ⬇ Download
+            </button>
+
+          </div>
 
         </div>
 
@@ -2857,10 +3138,22 @@ function showResults(results){
         );
 
 
+      const downloadButton =
+        item.querySelector(
+          ".d"
+        );
+
+
       if(playButton){
 
         playButton.onclick =
           () => {
+
+            /*
+               Masukkan ke state sementara
+               agar Play tetap bekerja seperti
+               kode lama.
+            */
 
             playYT(
               song
@@ -2892,6 +3185,24 @@ function showResults(results){
 
 
             closeResults();
+
+          };
+
+      }
+
+
+      if(downloadButton){
+
+        downloadButton.onclick =
+          async event => {
+
+            event.stopPropagation();
+
+
+            await downloadCobalt(
+              song,
+              downloadButton
+            );
 
           };
 
@@ -2945,11 +3256,91 @@ if($("query")){
 
 
 /* =========================================================
-   YOUTUBE API READY
+   END OF PART 1
 ========================================================= */
 
-window.onYouTubeIframeAPIReady =
-  () => {
+/* =========================================================
+   MYMUSIC V2 — APP.JS
+   PART 2
+   ---------------------------------------------------------
+   YOUTUBE PLAYER
+   YOUTUBE IFRAME API
+   DURATION
+   BACKGROUND / LOCK SCREEN LIMITATION
+   INITIALIZATION
+========================================================= */
+
+
+/* =========================================================
+   YOUTUBE PLAYER CONTAINER
+========================================================= */
+
+function createYTContainer(){
+
+  if($("ytPlayer"))
+    return $("ytPlayer");
+
+
+  const container =
+    document.createElement("div");
+
+
+  container.id =
+    "ytPlayer";
+
+
+  container.style.position =
+    "fixed";
+
+
+  container.style.width =
+    "1px";
+
+
+  container.style.height =
+    "1px";
+
+
+  container.style.left =
+    "-9999px";
+
+
+  container.style.top =
+    "0";
+
+
+  container.style.opacity =
+    "0";
+
+
+  container.style.pointerEvents =
+    "none";
+
+
+  container.style.overflow =
+    "hidden";
+
+
+  document.body.appendChild(
+    container
+  );
+
+
+  return container;
+
+}
+
+
+/* =========================================================
+   LOAD YOUTUBE IFRAME API
+========================================================= */
+
+function loadYouTubeAPI(){
+
+  if(
+    window.YT &&
+    window.YT.Player
+  ){
 
     ytReady =
       true;
@@ -2971,97 +3362,191 @@ window.onYouTubeIframeAPIReady =
 
     }
 
-  };
-
-
-/* =========================================================
-   PLAY YOUTUBE
-========================================================= */
-
-function playYT(song){
-
-  /*
-     YouTube bukan native audio.
-     Media Session Lock Screen terutama
-     ditujukan untuk local HTMLAudioElement.
-  */
-
-  $("title").textContent =
-    song.title;
-
-
-  $("artist").textContent =
-    song.artist;
-
-
-  $("status").textContent =
-    "YouTube Online";
-
-
-  updateVinylCover(
-    song
-  );
-
-
-  updateMediaSession(
-    song
-  );
-
-
-  $("cover").innerHTML =
-    song.thumb
-    ?
-    `<img
-      src="${esc(song.thumb)}"
-      alt=""
-    >`
-    :
-    "▶";
-
-
-  $("cur").textContent =
-    "0:00";
-
-
-  $("dur").textContent =
-    "0:00";
-
-
-  $("bar").value =
-    0;
-
-
-  if(!ytReady){
-
-    pending =
-      song;
-
 
     return;
 
   }
 
 
-  if(yt){
+  /*
+     Jika script sudah ada,
+     jangan masukkan dua kali.
+  */
 
-    try{
+  if(
+    document.querySelector(
+      'script[src="https://www.youtube.com/iframe_api"]'
+    )
+  ){
 
-      yt.loadVideoById(
-        song.videoId
+    return;
+
+  }
+
+
+  window.onYouTubeIframeAPIReady =
+    () => {
+
+      ytReady =
+        true;
+
+
+      if(pending){
+
+        const song =
+          pending;
+
+
+        pending =
+          null;
+
+
+        playYT(
+          song
+        );
+
+      }
+
+    };
+
+
+  const script =
+    document.createElement(
+      "script"
+    );
+
+
+  script.src =
+    "https://www.youtube.com/iframe_api";
+
+
+  script.async =
+    true;
+
+
+  document.head.appendChild(
+    script
+  );
+
+}
+
+
+/* =========================================================
+   CREATE YOUTUBE PLAYER
+========================================================= */
+
+function initYTPlayer(){
+
+  if(yt)
+    return;
+
+
+  if(
+    !window.YT ||
+    !window.YT.Player
+  ){
+
+    loadYouTubeAPI();
+
+    return;
+
+  }
+
+
+  const container =
+    createYTContainer();
+
+
+  try{
+
+    yt =
+      new YT.Player(
+        container,
+        {
+
+          width:
+            "1",
+
+          height:
+            "1",
+
+          videoId:
+            "",
+
+          playerVars:{
+
+            autoplay:
+              0,
+
+            controls:
+              0,
+
+            playsinline:
+              1,
+
+            rel:
+              0,
+
+            modestbranding:
+              1,
+
+            iv_load_policy:
+              3,
+
+            fs:
+              0
+
+          },
+
+          events:{
+
+            onReady:
+              onYTReady,
+
+            onStateChange:
+              onYTStateChange,
+
+            onError:
+              onYTError
+
+          }
+
+        }
       );
 
-    }catch(error){
+  }catch(error){
 
-      console.warn(
-        "YouTube load:",
-        error
-      );
+    console.error(
+      "YT Player gagal dibuat:",
+      error
+    );
 
-    }
+  }
 
-  }else{
+}
 
-    createYT(
+
+/* =========================================================
+   YOUTUBE READY
+========================================================= */
+
+function onYTReady(){
+
+  ytReady =
+    true;
+
+
+  if(pending){
+
+    const song =
+      pending;
+
+
+    pending =
+      null;
+
+
+    playYT(
       song
     );
 
@@ -3071,132 +3556,514 @@ function playYT(song){
 
 
 /* =========================================================
-   CREATE YOUTUBE PLAYER
+   PLAY YOUTUBE
 ========================================================= */
 
-function createYT(song){
+function playYT(song){
 
-  yt =
-    new YT.Player(
-      "youtubePlayer",
-      {
+  if(
+    !song ||
+    !song.videoId
+  ){
 
-        width:
-          "1",
+    return;
 
-        height:
-          "1",
-
-        videoId:
-          song.videoId,
-
-        playerVars:{
-
-          autoplay:
-            1,
-
-          playsinline:
-            1,
-
-          controls:
-            0,
-
-          rel:
-            0
-
-        },
+  }
 
 
-        events:{
+  /*
+     Pastikan song tersedia
+     di state sementara.
+  */
 
-          onReady:
-            event => {
-
-              event.target
-                .playVideo();
-
-
-              startYTTimer();
-
-            },
-
-
-          onStateChange:
-            event => {
-
-              if(
-                event.data ===
-                YT.PlayerState.PLAYING
-              ){
-
-                $("play").textContent =
-                  "⏸";
-
-
-                vinylPlay();
-
-
-                startYTTimer();
-
-              }
-
-
-              else if(
-                event.data ===
-                YT.PlayerState.PAUSED
-              ){
-
-                $("play").textContent =
-                  "▶";
-
-
-                vinylPause();
-
-
-                stopYTTimer();
-
-              }
-
-
-              else if(
-                event.data ===
-                YT.PlayerState.ENDED
-              ){
-
-                vinylPause();
-
-
-                stopYTTimer();
-
-
-                nextSong();
-
-              }
-
-            },
-
-
-          onError:
-            event => {
-
-              $("status").textContent =
-                "YouTube Error";
-
-
-              vinylPause();
-
-
-              console.log(
-                "YouTube error:",
-                event.data
-              );
-
-            }
-
-        }
-
-      }
+  const index =
+    songs.findIndex(
+      item =>
+        item.id === song.id
     );
+
+
+  if(index >= 0){
+
+    current =
+      index;
+
+  }
+
+
+  /*
+     Jika API belum siap,
+     simpan request.
+  */
+
+  if(
+    !window.YT ||
+    !window.YT.Player
+  ){
+
+    pending =
+      song;
+
+
+    loadYouTubeAPI();
+
+
+    if($("status")){
+
+      $("status").textContent =
+        "Memuat YouTube...";
+
+    }
+
+
+    return;
+
+  }
+
+
+  if(!yt){
+
+    pending =
+      song;
+
+
+    initYTPlayer();
+
+
+    if($("status")){
+
+      $("status").textContent =
+        "Memuat YouTube...";
+
+    }
+
+
+    return;
+
+  }
+
+
+  if(!ytReady){
+
+    pending =
+      song;
+
+
+    if($("status")){
+
+      $("status").textContent =
+        "Menyiapkan YouTube...";
+
+    }
+
+
+    return;
+
+  }
+
+
+  try{
+
+    audio.pause();
+
+
+    if(url){
+
+      try{
+
+        URL.revokeObjectURL(
+          url
+        );
+
+      }catch(error){}
+
+
+      url =
+        null;
+
+    }
+
+
+    vinylPause();
+
+
+    updateVinylCover(
+      song
+    );
+
+
+    if($("title")){
+
+      $("title").textContent =
+        song.title ||
+        "YouTube";
+
+    }
+
+
+    if($("artist")){
+
+      $("artist").textContent =
+        song.artist ||
+        "YouTube";
+
+    }
+
+
+    if($("cover")){
+
+      $("cover").innerHTML =
+        song.thumb
+        ?
+        `<img
+          src="${esc(song.thumb)}"
+          alt=""
+        >`
+        :
+        "▶";
+
+    }
+
+
+    if($("status")){
+
+      $("status").textContent =
+        "YouTube";
+
+    }
+
+
+    if($("bar")){
+
+      $("bar").value =
+        0;
+
+    }
+
+
+    if($("cur")){
+
+      $("cur").textContent =
+        "0:00";
+
+    }
+
+
+    if($("dur")){
+
+      $("dur").textContent =
+        song.duration
+        ?
+        time(song.duration)
+        :
+        "0:00";
+
+    }
+
+
+    updateMediaSession(
+      song
+    );
+
+
+    setMediaState(
+      "none"
+    );
+
+
+    /*
+       Load video baru.
+    */
+
+    yt.loadVideoById(
+      song.videoId
+    );
+
+
+  }catch(error){
+
+    console.error(
+      "Play YouTube error:",
+      error
+    );
+
+
+    if($("status")){
+
+      $("status").textContent =
+        "YouTube gagal diputar";
+
+    }
+
+  }
+
+}
+
+
+/* =========================================================
+   YOUTUBE STATE
+========================================================= */
+
+function onYTStateChange(event){
+
+  if(
+    !yt ||
+    !window.YT
+  )
+    return;
+
+
+  const state =
+    event.data;
+
+
+  /*
+     PLAYING
+  */
+
+  if(
+    state ===
+    YT.PlayerState.PLAYING
+  ){
+
+    vinylPlay();
+
+
+    if($("play")){
+
+      $("play").textContent =
+        "⏸";
+
+    }
+
+
+    if($("status")){
+
+      $("status").textContent =
+        "YouTube • Playing";
+
+    }
+
+
+    setMediaState(
+      "playing"
+    );
+
+
+    updateYTDuration();
+
+
+    startYTTimer();
+
+
+    return;
+
+  }
+
+
+  /*
+     PAUSED
+  */
+
+  if(
+    state ===
+    YT.PlayerState.PAUSED
+  ){
+
+    vinylPause();
+
+
+    if($("play")){
+
+      $("play").textContent =
+        "▶";
+
+    }
+
+
+    if($("status")){
+
+      $("status").textContent =
+        "YouTube • Paused";
+
+    }
+
+
+    setMediaState(
+      "paused"
+    );
+
+
+    stopYTTimer();
+
+
+    return;
+
+  }
+
+
+  /*
+     BUFFERING
+  */
+
+  if(
+    state ===
+    YT.PlayerState.BUFFERING
+  ){
+
+    if($("status")){
+
+      $("status").textContent =
+        "YouTube • Buffering...";
+
+    }
+
+
+    return;
+
+  }
+
+
+  /*
+     ENDED
+  */
+
+  if(
+    state ===
+    YT.PlayerState.ENDED
+  ){
+
+    vinylPause();
+
+
+    stopYTTimer();
+
+
+    if($("play")){
+
+      $("play").textContent =
+        "▶";
+
+    }
+
+
+    setMediaState(
+      "none"
+    );
+
+
+    nextSong();
+
+
+    return;
+
+  }
+
+}
+
+
+/* =========================================================
+   YOUTUBE ERROR
+========================================================= */
+
+function onYTError(event){
+
+  console.error(
+    "YouTube Error:",
+    event.data
+  );
+
+
+  stopYTTimer();
+
+
+  vinylPause();
+
+
+  if($("play")){
+
+    $("play").textContent =
+      "▶";
+
+  }
+
+
+  if($("status")){
+
+    $("status").textContent =
+      "YouTube Error";
+
+  }
+
+
+  /*
+     Kode error umum:
+
+     2   = parameter salah
+     5   = HTML5 player error
+     100 = video tidak ditemukan
+     101 = embedding tidak diizinkan
+     150 = embedding tidak diizinkan
+  */
+
+  let message =
+    "YouTube tidak dapat diputar";
+
+
+  if(
+    event.data === 100
+  ){
+
+    message =
+      "Video YouTube tidak ditemukan";
+
+  }
+
+
+  if(
+    event.data === 101 ||
+    event.data === 150
+  ){
+
+    message =
+      "Video ini tidak mengizinkan pemutaran di aplikasi";
+
+  }
+
+
+  console.warn(
+    message,
+    event.data
+  );
+
+}
+
+
+/* =========================================================
+   STOP YOUTUBE
+========================================================= */
+
+function stopYT(){
+
+  stopYTTimer();
+
+
+  if(!yt)
+    return;
+
+
+  try{
+
+    yt.stopVideo();
+
+  }catch(error){}
+
+
+  try{
+
+    yt.pauseVideo();
+
+  }catch(error){}
 
 }
 
@@ -3212,73 +4079,12 @@ function startYTTimer(){
 
   ytTimer =
     setInterval(
-      () => {
-
-        if(!yt)
-          return;
-
-
-        try{
-
-          const currentTime =
-            yt.getCurrentTime();
-
-
-          const duration =
-            yt.getDuration();
-
-
-          if(
-            duration > 0
-          ){
-
-            $("cur").textContent =
-              time(
-                currentTime
-              );
-
-
-            $("dur").textContent =
-              time(
-                duration
-              );
-
-
-            $("bar").value =
-              (
-                currentTime /
-                duration
-              ) * 100;
-
-          }
-
-        }catch(error){}
-
-      },
+      updateYTProgress,
       500
     );
 
-}
 
-
-/* =========================================================
-   STOP YOUTUBE
-========================================================= */
-
-function stopYT(){
-
-  stopYTTimer();
-
-
-  if(yt){
-
-    try{
-
-      yt.stopVideo();
-
-    }catch(error){}
-
-  }
+  updateYTProgress();
 
 }
 
@@ -3305,145 +4111,301 @@ function stopYTTimer(){
 
 
 /* =========================================================
-   CLEAR LIBRARY
+   UPDATE YOUTUBE PROGRESS
 ========================================================= */
 
-if($("clear")){
+function updateYTProgress(){
 
-  $("clear").onclick =
-    async () => {
+  if(
+    !yt ||
+    !ytReady
+  ){
+
+    return;
+
+  }
+
+
+  try{
+
+    const duration =
+      yt.getDuration();
+
+
+    const currentTime =
+      yt.getCurrentTime();
+
+
+    if(
+      !duration ||
+      !isFinite(duration)
+    ){
+
+      return;
+
+    }
+
+
+    if(
+      $("bar")
+    ){
+
+      $("bar").value =
+        (
+          currentTime /
+          duration
+        ) *
+        100;
+
+    }
+
+
+    if(
+      $("cur")
+    ){
+
+      $("cur").textContent =
+        time(
+          currentTime
+        );
+
+    }
+
+
+    if(
+      $("dur")
+    ){
+
+      $("dur").textContent =
+        time(
+          duration
+        );
+
+    }
+
+
+    /*
+       Simpan durasi YouTube
+       ke song.
+    */
+
+    if(
+      current >= 0 &&
+      songs[current] &&
+      songs[current].type ===
+      "yt"
+    ){
+
+      const song =
+        songs[current];
+
 
       if(
-        !confirm(
-          "Hapus semua lagu?"
-        )
+        !song.duration ||
+        Math.abs(
+          song.duration -
+          duration
+        ) > 1
       ){
 
-        return;
+        song.duration =
+          duration;
+
+
+        saveSong(
+          song
+        ).catch(()=>{});
 
       }
 
+    }
 
-      const transaction =
-        db.transaction(
-          "songs",
-          "readwrite"
-        );
-
-
-      transaction
-        .objectStore(
-          "songs"
-        )
-        .clear();
-
-
-      transaction.oncomplete =
-        () => {
-
-          songs =
-            [];
-
-
-          current =
-            -1;
-
-
-          stopYT();
-
-
-          audio.pause();
-
-
-          audio.removeAttribute(
-            "src"
-          );
-
-
-          audio.load();
-
-
-          vinylPause();
-
-
-          if(url){
-
-            try{
-
-              URL.revokeObjectURL(
-                url
-              );
-
-            }catch(error){}
-
-
-            url =
-              null;
-
-          }
-
-
-          render();
-
-
-          $("title").textContent =
-            "Belum ada lagu";
-
-
-          $("artist").textContent =
-            "Tambahkan musik untuk mulai";
-
-
-          $("status").textContent =
-            "Ready";
-
-
-          $("cur").textContent =
-            "0:00";
-
-
-          $("dur").textContent =
-            "0:00";
-
-
-          $("bar").value =
-            0;
-
-
-          updateMediaSession(
-            null
-          );
-
-
-          updateVinylCover(
-            null
-          );
-
-        };
-
-    };
+  }catch(error){}
 
 }
 
 
 /* =========================================================
-   BEFORE UNLOAD
+   UPDATE YOUTUBE DURATION
 ========================================================= */
 
-/*
-   Jangan revoke Blob URL ketika halaman hanya
-   masuk background.
+function updateYTDuration(){
 
-   Hanya dilepas ketika benar-benar ditutup
-   dan browser membutuhkan cleanup.
-*/
+  if(
+    !yt ||
+    !ytReady
+  )
+    return;
 
-window.addEventListener(
-  "beforeunload",
-  () => {
+
+  try{
+
+    const duration =
+      yt.getDuration();
+
+
+    if(
+      !duration ||
+      !isFinite(duration)
+    ){
+
+      return;
+
+    }
+
+
+    if($("dur")){
+
+      $("dur").textContent =
+        time(duration);
+
+    }
+
+
+    if(
+      current >= 0 &&
+      songs[current]
+    ){
+
+      songs[current].duration =
+        duration;
+
+
+      saveSong(
+        songs[current]
+      ).catch(()=>{});
+
+    }
+
+  }catch(error){}
+
+}
+
+
+/* =========================================================
+   YOUTUBE SEARCH RESULT DURATION
+   ---------------------------------------------------------
+   Search API tidak memberikan duration.
+   Kita ambil duration melalui YouTube
+   player ketika video dimainkan.
+========================================================= */
+
+
+/* =========================================================
+   ADD YOUTUBE SONG
+========================================================= */
+
+async function addYouTubeSong(song){
+
+  if(
+    !song ||
+    !song.videoId
+  ){
+
+    return;
+
+  }
+
+
+  /*
+     Cek apakah sudah ada.
+  */
+
+  const exists =
+    songs.some(
+      item =>
+        item.id === song.id
+    );
+
+
+  if(exists){
+
+    return;
+
+  }
+
+
+  await saveSong(
+    song
+  );
+
+
+  songs =
+    await getSongs();
+
+
+  render();
+
+}
+
+
+/* =========================================================
+   PLAYLIST BUTTON SUPPORT
+========================================================= */
+
+document.addEventListener(
+  "click",
+  async event => {
+
+    const button =
+      event.target.closest(
+        ".a"
+      );
+
+
+    if(!button)
+      return;
+
 
     /*
-       Tidak pause audio di sini.
+       Jika button .a berasal dari
+       hasil pencarian, data song
+       dicari dari parent result.
+    */
+
+    const result =
+      button.closest(
+        ".result"
+      );
+
+
+    if(!result)
+      return;
+
+
+    const title =
+      result.querySelector(
+        ".ri b"
+      )?.textContent ||
+      "";
+
+
+    const artist =
+      result.querySelector(
+        ".ri small"
+      )?.textContent ||
+      "";
+
+
+    /*
+       Hindari double action jika
+       handler lokal sudah melakukan
+       saveSong().
+    */
+
+    if(
+      button.dataset.handled ===
+      "true"
+    ){
+
+      return;
+
+    }
+
+
+    /*
+       Handler utama sudah dipasang
+       pada showResults().
     */
 
   }
@@ -3451,42 +4413,620 @@ window.addEventListener(
 
 
 /* =========================================================
-   START APPLICATION
+   YOUTUBE SEARCH RESULT CLICK GUARD
 ========================================================= */
 
-openDB()
-  .then(
-    async () => {
+if($("results")){
 
-      songs =
-        await getSongs();
+  $("results").addEventListener(
+    "click",
+    event => {
 
-
-      render();
-
-
-      initVinyl();
+      const result =
+        event.target.closest(
+          ".result"
+        );
 
 
-      setupMediaSession();
+      if(!result)
+        return;
 
 
-      $("status").textContent =
-        "Ready";
+      /*
+         Jangan membuat klik area
+         hasil ikut memutar video.
+         Hanya tombol Play yang
+         melakukan aksi.
+      */
 
     }
-  )
-  .catch(
-    error => {
+  );
 
-      console.error(
-        "Database error:",
-        error
+}
+
+
+/* =========================================================
+   FILE TYPE VALIDATION
+========================================================= */
+
+function isSupportedAudioFile(file){
+
+  if(!file)
+    return false;
+
+
+  const name =
+    file.name.toLowerCase();
+
+
+  return (
+    /\.(mp3|wav|m4a|aac|ogg|mp4|webm)$/i
+      .test(name)
+  );
+
+}
+
+
+/* =========================================================
+   REPLACE FILE IMPORT HANDLER
+   ---------------------------------------------------------
+   Tetap menggunakan #files yang
+   sudah dibuat pada Part 1.
+========================================================= */
+
+if($("files")){
+
+  /*
+     Handler Part 1 sudah terpasang.
+     Kita tidak menggantinya agar
+     fitur lama tetap utuh.
+
+     Validasi tambahan dilakukan
+     melalui event capture.
+  */
+
+  $("files").addEventListener(
+    "change",
+    event => {
+
+      const files =
+        Array.from(
+          event.target.files || []
+        );
+
+
+      const unsupported =
+        files.filter(
+          file =>
+            !isSupportedAudioFile(
+              file
+            )
+        );
+
+
+      if(
+        unsupported.length &&
+        $("status")
+      ){
+
+        $("status").textContent =
+          unsupported.length +
+          " file tidak didukung";
+
+      }
+
+    },
+    true
+  );
+
+}
+
+
+/* =========================================================
+   PANEL CLOSE
+========================================================= */
+
+function closePanel(){
+
+  if($("panel")){
+
+    $("panel")
+      .classList.remove(
+        "open"
       );
 
+  }
+
+}
+
+
+/* =========================================================
+   CLOSE PANEL WHEN PLAYING
+========================================================= */
+
+document.addEventListener(
+  "click",
+  event => {
+
+    const target =
+      event.target;
+
+
+    if(
+      target.closest("#searchBtn") ||
+      target.closest("#files")
+    ){
+
+      return;
+
+    }
+
+  }
+);
+
+
+/* =========================================================
+   KEYBOARD SHORTCUTS
+========================================================= */
+
+document.addEventListener(
+  "keydown",
+  event => {
+
+    /*
+       Jangan mengganggu input.
+    */
+
+    if(
+      event.target.tagName ===
+      "INPUT" ||
+      event.target.tagName ===
+      "TEXTAREA"
+    ){
+
+      return;
+
+    }
+
+
+    /*
+       Space = Play/Pause
+    */
+
+    if(
+      event.code ===
+      "Space"
+    ){
+
+      event.preventDefault();
+
+
+      if($("play")){
+
+        $("play").click();
+
+      }
+
+    }
+
+
+    /*
+       Arrow Right = Next
+    */
+
+    if(
+      event.code ===
+      "ArrowRight"
+    ){
+
+      nextSong();
+
+    }
+
+
+    /*
+       Arrow Left = Previous
+    */
+
+    if(
+      event.code ===
+      "ArrowLeft"
+    ){
+
+      previousSong();
+
+    }
+
+  }
+);
+
+
+/* =========================================================
+   CLEAN OLD OBJECT URL
+========================================================= */
+
+window.addEventListener(
+  "beforeunload",
+  () => {
+
+    if(url){
+
+      try{
+
+        URL.revokeObjectURL(
+          url
+        );
+
+      }catch(error){}
+
+    }
+
+
+    stopYTTimer();
+
+  }
+);
+
+
+/* =========================================================
+   INITIALIZATION
+========================================================= */
+
+async function initMyMusic(){
+
+  try{
+
+    /*
+       IndexedDB
+    */
+
+    await openDB();
+
+
+    /*
+       Ambil library.
+    */
+
+    songs =
+      await getSongs();
+
+
+    /*
+       Render awal.
+    */
+
+    render();
+
+
+    /*
+       Vinyl.
+    */
+
+    initVinyl();
+
+
+    /*
+       Media Session.
+    */
+
+    setupMediaSession();
+
+
+    /*
+       YouTube API.
+       Tidak langsung membuat player
+       sebelum diperlukan.
+    */
+
+    loadYouTubeAPI();
+
+
+    /*
+       Status awal.
+    */
+
+    if(
+      $("status") &&
+      !songs.length
+    ){
+
+      $("status").textContent =
+        "MyMusic Ready";
+
+    }
+
+
+    /*
+       Restore tombol.
+    */
+
+    if($("shuffle")){
+
+      $("shuffle")
+        .classList.toggle(
+          "on",
+          shuffle
+        );
+
+    }
+
+
+    if($("repeat")){
+
+      $("repeat")
+        .classList.toggle(
+          "on",
+          repeat
+        );
+
+    }
+
+
+  }catch(error){
+
+    console.error(
+      "MyMusic initialization error:",
+      error
+    );
+
+
+    if($("status")){
 
       $("status").textContent =
         "Database Error";
 
     }
+
+  }
+
+}
+
+
+/* =========================================================
+   DOM READY
+========================================================= */
+
+if(
+  document.readyState ===
+  "loading"
+){
+
+  document.addEventListener(
+    "DOMContentLoaded",
+    initMyMusic
   );
+
+}else{
+
+  initMyMusic();
+
+}
+
+
+/* =========================================================
+   SERVICE WORKER
+   ---------------------------------------------------------
+   Tidak wajib untuk playback.
+   Hanya didaftarkan jika file tersedia.
+========================================================= */
+
+if(
+  "serviceWorker" in navigator
+){
+
+  window.addEventListener(
+    "load",
+    () => {
+
+      navigator.serviceWorker
+        .register(
+          "./sw.js"
+        )
+        .then(
+          registration => {
+
+            console.log(
+              "Service Worker aktif:",
+              registration.scope
+            );
+
+          }
+        )
+        .catch(
+          error => {
+
+            console.warn(
+              "Service Worker tidak tersedia:",
+              error
+            );
+
+          }
+        );
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   MEDIA SESSION — UPDATE POSITION PERIODICALLY
+========================================================= */
+
+setInterval(
+  () => {
+
+    if(
+      current < 0 ||
+      !songs[current]
+    ){
+
+      return;
+
+    }
+
+
+    if(
+      songs[current].type ===
+      "local"
+    ){
+
+      if(
+        !audio.paused
+      ){
+
+        updatePositionState();
+
+      }
+
+    }
+
+  },
+  1000
+);
+
+
+/* =========================================================
+   NETWORK STATUS
+========================================================= */
+
+window.addEventListener(
+  "online",
+  () => {
+
+    if($("status")){
+
+      if(
+        current >= 0 &&
+        songs[current]
+      ){
+
+        if(
+          songs[current].type ===
+          "yt"
+        ){
+
+          $("status").textContent =
+            "YouTube Online";
+
+        }
+
+      }
+
+    }
+
+  }
+);
+
+
+window.addEventListener(
+  "offline",
+  () => {
+
+    /*
+       Lagu LOCAL tetap dapat
+       dimainkan karena Blob berada
+       di IndexedDB.
+
+       YouTube tidak dipaksa
+       berhenti di sini.
+    */
+
+    if(
+      current >= 0 &&
+      songs[current] &&
+      songs[current].type ===
+      "local"
+    ){
+
+      if($("status")){
+
+        $("status").textContent =
+          "Offline • Local Music";
+
+      }
+
+    }
+
+  }
+);
+
+
+/* =========================================================
+   FINAL SAFETY
+========================================================= */
+
+window.MyMusic = {
+
+  get songs(){
+
+    return songs;
+
+  },
+
+
+  get current(){
+
+    return current;
+
+  },
+
+
+  play(index){
+
+    playSong(
+      index
+    );
+
+  },
+
+
+  next(){
+
+    nextSong();
+
+  },
+
+
+  previous(){
+
+    previousSong();
+
+  },
+
+
+  search(){
+
+    search();
+
+  },
+
+
+  closeResults(){
+
+    closeResults();
+
+  },
+
+
+  closePanel(){
+
+    closePanel();
+
+  },
+
+
+  download(song){
+
+    return downloadCobalt(
+      song
+    );
+
+  }
+
+};
+
+
+/* =========================================================
+   END OF MYMUSIC V2 — APP.JS
+========================================================= */
