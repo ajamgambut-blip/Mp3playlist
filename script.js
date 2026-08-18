@@ -765,3 +765,567 @@ openDB().then(async()=>{
 
  $("status").textContent="Ready";
 });
+
+/* =========================================================
+   MYMUSIC — VINYL + VISUALIZER
+   Tambahan — tidak mengganti sistem player utama
+========================================================= */
+
+(function(){
+
+  const audioEl = document.getElementById("audio");
+  const coverEl = document.getElementById("cover");
+
+  if(!audioEl || !coverEl) return;
+
+
+  /* =====================================================
+     BUAT VINYL
+  ===================================================== */
+
+  coverEl.insertAdjacentHTML("beforebegin",`
+
+    <div id="vinylWrap">
+
+      <div class="vinyl" id="vinyl">
+
+        <div id="vinylCenter">
+          ♪
+        </div>
+
+      </div>
+
+    </div>
+
+    <canvas id="viz"></canvas>
+
+  `);
+
+
+  const vinyl =
+    document.getElementById("vinyl");
+
+  const vinylCenter =
+    document.getElementById("vinylCenter");
+
+  const canvas =
+    document.getElementById("viz");
+
+  const ctx =
+    canvas.getContext("2d");
+
+
+  /* =====================================================
+     VINYL COVER
+  ===================================================== */
+
+  function updateVinylCover(){
+
+    const img =
+      coverEl.querySelector("img");
+
+    if(img && img.src){
+
+      vinylCenter.innerHTML = `
+        <img
+          src="${img.src}"
+          alt=""
+        >
+      `;
+
+    }else{
+
+      vinylCenter.innerHTML = "♪";
+
+    }
+
+  }
+
+
+  /* =====================================================
+     PERHATIKAN PERUBAHAN COVER
+  ===================================================== */
+
+  const coverObserver =
+    new MutationObserver(()=>{
+
+      updateVinylCover();
+
+    });
+
+
+  coverObserver.observe(
+    coverEl,
+    {
+      childList:true,
+      subtree:true,
+      attributes:true,
+      attributeFilter:["src"]
+    }
+  );
+
+
+  updateVinylCover();
+
+
+  /* =====================================================
+     AUDIO VISUALIZER
+  ===================================================== */
+
+  let audioContext = null;
+  let analyser = null;
+  let source = null;
+  let dataArray = null;
+
+
+  function initVisualizer(){
+
+    if(audioContext) return;
+
+
+    try{
+
+      audioContext =
+        new (
+          window.AudioContext ||
+          window.webkitAudioContext
+        )();
+
+
+      analyser =
+        audioContext.createAnalyser();
+
+
+      analyser.fftSize = 128;
+
+
+      analyser.smoothingTimeConstant =
+        0.82;
+
+
+      /*
+       * PENTING:
+       * createMediaElementSource hanya
+       * dibuat SATU KALI.
+       */
+
+      source =
+        audioContext.createMediaElementSource(
+          audioEl
+        );
+
+
+      source.connect(analyser);
+
+      analyser.connect(
+        audioContext.destination
+      );
+
+
+      dataArray =
+        new Uint8Array(
+          analyser.frequencyBinCount
+        );
+
+
+    }catch(error){
+
+      console.warn(
+        "Visualizer error:",
+        error
+      );
+
+    }
+
+  }
+
+
+  /* =====================================================
+     CANVAS RESPONSIVE
+  ===================================================== */
+
+  function resizeCanvas(){
+
+    const rect =
+      canvas.getBoundingClientRect();
+
+    const dpr =
+      window.devicePixelRatio || 1;
+
+
+    canvas.width =
+      rect.width * dpr;
+
+    canvas.height =
+      rect.height * dpr;
+
+
+    ctx.setTransform(
+      dpr,
+      0,
+      0,
+      dpr,
+      0,
+      0
+    );
+
+  }
+
+
+  resizeCanvas();
+
+
+  window.addEventListener(
+    "resize",
+    resizeCanvas
+  );
+
+
+  /* =====================================================
+     DRAW VISUALIZER
+  ===================================================== */
+
+  function drawVisualizer(){
+
+    requestAnimationFrame(
+      drawVisualizer
+    );
+
+
+    const width =
+      canvas.clientWidth;
+
+    const height =
+      canvas.clientHeight;
+
+
+    ctx.clearRect(
+      0,
+      0,
+      width,
+      height
+    );
+
+
+    /*
+     * Background
+     */
+
+    ctx.fillStyle =
+      "#090909";
+
+    ctx.fillRect(
+      0,
+      0,
+      width,
+      height
+    );
+
+
+    if(!analyser){
+
+      drawIdle();
+
+      return;
+
+    }
+
+
+    analyser.getByteFrequencyData(
+      dataArray
+    );
+
+
+    const count =
+      dataArray.length;
+
+
+    const barWidth =
+      width / count;
+
+
+    for(
+      let i=0;
+      i<count;
+      i++
+    ){
+
+      let value =
+        dataArray[i] / 255;
+
+
+      /*
+       * Supaya visualizer
+       * tidak terlalu tinggi
+       */
+
+      let barHeight =
+        value * height * 0.9;
+
+
+      if(barHeight < 2)
+        barHeight = 2;
+
+
+      const x =
+        i * barWidth;
+
+
+      const y =
+        height - barHeight;
+
+
+      /*
+       * Gradient putih → abu
+       */
+
+      const gradient =
+        ctx.createLinearGradient(
+          0,
+          height,
+          0,
+          0
+        );
+
+
+      gradient.addColorStop(
+        0,
+        "#ffffff"
+      );
+
+
+      gradient.addColorStop(
+        0.55,
+        "#bdbdbd"
+      );
+
+
+      gradient.addColorStop(
+        1,
+        "#555555"
+      );
+
+
+      ctx.fillStyle =
+        gradient;
+
+
+      ctx.fillRect(
+        x + 1,
+        y,
+        Math.max(1,barWidth - 2),
+        barHeight
+      );
+
+    }
+
+  }
+
+
+  /* =====================================================
+     IDLE VISUALIZER
+  ===================================================== */
+
+  function drawIdle(){
+
+    const width =
+      canvas.clientWidth;
+
+    const height =
+      canvas.clientHeight;
+
+
+    const bars = 48;
+
+    const barWidth =
+      width / bars;
+
+
+    for(
+      let i=0;
+      i<bars;
+      i++
+    ){
+
+      /*
+       * Gelombang kecil
+       */
+
+      const wave =
+        3 +
+        Math.abs(
+          Math.sin(
+            i * 0.7
+          )
+        ) * 3;
+
+
+      ctx.fillStyle =
+        "#333";
+
+
+      ctx.fillRect(
+        i * barWidth,
+        height - wave,
+        Math.max(
+          1,
+          barWidth - 2
+        ),
+        wave
+      );
+
+    }
+
+  }
+
+
+  drawVisualizer();
+
+
+  /* =====================================================
+     AUDIO PLAY
+  ===================================================== */
+
+  audioEl.addEventListener(
+    "play",
+    async ()=>{
+
+      /*
+       * Aktifkan analyser hanya
+       * untuk audio lokal.
+       */
+
+      initVisualizer();
+
+
+      if(
+        audioContext &&
+        audioContext.state ===
+        "suspended"
+      ){
+
+        try{
+
+          await audioContext.resume();
+
+        }catch(e){}
+
+      }
+
+
+      vinyl.classList.add(
+        "playing"
+      );
+
+    }
+  );
+
+
+  /* =====================================================
+     AUDIO PAUSE
+  ===================================================== */
+
+  audioEl.addEventListener(
+    "pause",
+    ()=>{
+
+      vinyl.classList.remove(
+        "playing"
+      );
+
+    }
+  );
+
+
+  /* =====================================================
+     AUDIO ENDED
+  ===================================================== */
+
+  audioEl.addEventListener(
+    "ended",
+    ()=>{
+
+      vinyl.classList.remove(
+        "playing"
+      );
+
+    }
+  );
+
+
+  /* =====================================================
+     KETIKA YOUTUBE DIPUTAR
+     
+     Karena YouTube memakai iframe,
+     kita hentikan putaran vinyl lokal.
+  ===================================================== */
+
+  const originalPlayYT =
+    window.playYT;
+
+
+  if(typeof originalPlayYT === "function"){
+
+    window.playYT =
+      function(song){
+
+        vinyl.classList.remove(
+          "playing"
+        );
+
+
+        return originalPlayYT.apply(
+          this,
+          arguments
+        );
+
+      };
+
+  }
+
+
+  /* =====================================================
+     COVER DARI SONG YOUTUBE
+  ===================================================== */
+
+  const originalPlaySong =
+    window.playSong;
+
+
+  if(typeof originalPlaySong === "function"){
+
+    window.playSong =
+      function(i){
+
+        const song =
+          window.songs &&
+          window.songs[i];
+
+
+        if(song && song.thumb){
+
+          vinylCenter.innerHTML = `
+            <img
+              src="${song.thumb}"
+              alt=""
+            >
+          `;
+
+        }else{
+
+          vinylCenter.innerHTML =
+            "♪";
+
+        }
+
+
+        return originalPlaySong.apply(
+          this,
+          arguments
+        );
+
+      };
+
+  }
+
+})();
