@@ -95,13 +95,14 @@
   📻 Buka Radio Hits
 </button>
 
-<!-- Ini kotaknya, awalnya disembunyikan -->
+<!-- KOTAK INI YG KURANG -->
 <div id="radioBox" style="display:none; margin-top:10px;">
   <input type="text" id="radioSearch" placeholder="Cari: prambors, gen, cirebon..." onkeyup="searchRadio()" style="width:100%; padding:10px; margin-bottom:12px; border-radius:8px; border:1px solid #333; background:#222; color:#fff;">
-  <div id="radioList"></div>
+  
+  <div id="radioList"></div> <!-- INI TEMPAT PRAMBORS, GEN, CIREBON MUNCUL -->
 </div>
 
-<div id="nowPlayingRadio" style="position:fixed; bottom:70px; left:16px; right:16px; background:#111; color:#fff; padding:12px; border-radius:12px; display:none;">
+<div id="nowPlayingRadio" style="position:fixed; bottom:70px; left:16px; right:16px; background:#111; color:#fff; padding:12px; border-radius:12px; display:none; z-index:999;">
   <b id="radioName">-</b>
   <button onclick="stopRadio()" style="float:right; background:red; color:#fff; border:none; padding:5px 10px; border-radius:6px;">Stop</button>
 </div>
