@@ -6119,38 +6119,3 @@ window.MyMusic = {
 /* =========================================================
    END OF MYMUSIC V2 — APP.JS PART 2
 ========================================================= 
-
-const radioList = [
-  {name:"Prambors FM", city:"Jakarta", url:"https://stream.zeno.fm/0r0a792kwz8uv", logo:"https://img2.gratispng.com/20191121/sj/transparent-prambors-radio-5dd5a9a6b2b0d1.9084561815746410627309.jpg"},
-  {name:"Gen FM", city:"Jakarta", url:"https://stream.zeno.fm/u4b3nq6e6y0uv", logo:"https://upload.wikimedia.org/wikipedia/id/9/9c/Logo_Gen_98.7_FM.png"},
-  {name:"Cirebon FM", city:"Cirebon", url:"https://stream.zeno.fm/8q3x3v8k6y0uv", logo:"https://play-lh.googleusercontent.com/abc123"}
-];
-
-function renderRadio(list = radioList){
-  const container = document.getElementById('radioList');
-  container.innerHTML = '';
-  list.forEach(radio => {
-    container.innerHTML += `<div onclick="playRadio('${radio.name}', '${radio.url}', '${radio.logo}')" style="display:flex; align-items:center; gap:12px; padding:10px; background:#222; border-radius:12px; cursor:pointer; color:#fff; margin-bottom:8px;">
-      <img src="${radio.logo}" style="width:50px; height:50px; border-radius:8px;">
-      <div><b>${radio.name}</b><br><small style="color:#aaa;">${radio.city}</small></div>
-      <span style="margin-left:auto;">▶️</span>
-    </div>`;
-  });
-}
-
-function playRadio(name, url, logo){
-  const audio = document.getElementById('radioPlayer');
-  audio.src = url; audio.play();
-  document.getElementById('nowPlayingRadio').style.display = 'block';
-  document.getElementById('radioName').innerText = name;
-}
-
-function stopRadio(){
-  document.getElementById('radioPlayer').pause();
-  document.getElementById('nowPlayingRadio').style.display = 'none';
-}
-
-function searchRadio(){
-  const q = document.getElementById('radioSearch').value.toLowerCase();
-  renderRadio(radioList.filter(r => r.name.toLowerCase().includes(q) || r.city.toLowerCase().includes(q)));
-}
