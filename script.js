@@ -6466,3 +6466,34 @@ async function getPipedAudio(id){
 
   throw new Error("Semua Piped gagal");
 }
+
+window.testPiped=async()=>{
+  const id=prompt("Masukkan URL YouTube:");
+  if(!id)return;
+
+  const m=id.match(
+    /(?:v=|youtu\.be\/|shorts\/)([^&?/]+)/
+  );
+
+  if(!m){
+    alert("URL YouTube tidak valid");
+    return;
+  }
+
+  try{
+    const url=await getPipedAudio(m[1]);
+    alert("PIPED BERHASIL!\n\nAudio berhasil ditemukan.");
+    console.log(url);
+  }catch(e){
+    alert("PIPED GAGAL:\n\n"+e.message);
+  }
+};
+
+setTimeout(()=>{
+  const b=document.createElement("button");
+  b.textContent="TEST PIPED";
+  b.style.cssText=
+    "position:fixed;bottom:20px;right:20px;z-index:99999;padding:12px 18px;border-radius:20px;background:#fff;color:#000;font-weight:bold";
+  b.onclick=window.testPiped;
+  document.body.appendChild(b);
+},1000);
