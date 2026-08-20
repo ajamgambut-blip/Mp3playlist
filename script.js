@@ -1,5 +1,6 @@
 /* =========================================================
    MYMUSIC V2 — APP.JS
+   PART 1 / 2
    PREMIUM VINYL + SAFE VISUALIZER
 
    LOCAL MUSIC
@@ -8,6 +9,7 @@
    MEDIA SESSION
    LOCK SCREEN PLAYBACK
    COBALT DOWNLOAD
+   OFFLINE YOUTUBE MUSIC
 
    IMPORTANT
    ---------------------------------------------------------
@@ -17,6 +19,7 @@
    - No AnalyserNode
    - Local playback remains background-safe
    - Cobalt digunakan untuk download audio YouTube
+   - YouTube audio dapat disimpan sebagai file offline
 ========================================================= */
 
 
@@ -1238,6 +1241,50 @@ function updatePositionState(){
 
 
 /* =========================================================
+   OFFLINE YOUTUBE SONG
+   ---------------------------------------------------------
+   Mencari file audio YouTube yang sudah
+   disimpan sebagai Blob di IndexedDB.
+========================================================= */
+
+function getOfflineSong(videoId){
+
+  if(!videoId)
+    return null;
+
+
+  return songs.find(
+    song =>
+      song.type === "local" &&
+      song.source === "cobalt" &&
+      song.videoId === videoId &&
+      song.blob
+  ) || null;
+
+}
+
+
+/* =========================================================
+   CHECK OFFLINE
+========================================================= */
+
+function isSongOffline(song){
+
+  if(
+    !song ||
+    !song.videoId
+  )
+    return false;
+
+
+  return !!getOfflineSong(
+    song.videoId
+  );
+
+}
+
+
+/* =========================================================
    RENDER LIBRARY
 ========================================================= */
 
@@ -1319,6 +1366,10 @@ function render(){
           <small>
 
             ${
+              song.source === "cobalt"
+              ?
+              "⬇ Offline"
+              :
               song.type === "yt"
               ?
               "▶ YouTube"
@@ -1492,6 +1543,49 @@ function playSong(index){
     song.type === "yt"
   ){
 
+    /*
+       Kalau lagu YouTube ternyata
+       sudah punya versi offline,
+       prioritaskan file lokal.
+    */
+
+    const offlineSong =
+      getOfflineSong(
+        song.videoId
+      );
+
+
+    if(offlineSong){
+
+      const offlineIndex =
+        songs.findIndex(
+          item =>
+            item.id ===
+            offlineSong.id
+        );
+
+
+      if(offlineIndex >= 0){
+
+        current =
+          offlineIndex;
+
+
+        render();
+
+
+        playSong(
+          offlineIndex
+        );
+
+
+        return;
+
+      }
+
+    }
+
+
     audio.pause();
 
     playYT(
@@ -1504,7 +1598,7 @@ function playSong(index){
 
 
   /* =======================================================
-     LOCAL
+     LOCAL / OFFLINE
   ======================================================= */
 
   stopYT();
@@ -1564,6 +1658,13 @@ function playSong(index){
   if($("cover")){
 
     $("cover").innerHTML =
+      song.thumb
+      ?
+      `<img
+        src="${esc(song.thumb)}"
+        alt=""
+      >`
+      :
       "♪";
 
   }
@@ -1572,6 +1673,10 @@ function playSong(index){
   if($("status")){
 
     $("status").textContent =
+      song.source === "cobalt"
+      ?
+      "Offline Music"
+      :
       "Local Music";
 
   }
@@ -2631,19 +2736,23 @@ function closeResults(){
 
 }
 
+
 /* =========================================================
-   COBALT DOWNLOAD
-   MYMUSIC V2 — COBALT 11.7.1
+   OFFLINE YOUTUBE DOWNLOAD
    ---------------------------------------------------------
-   - Compatible dengan Cobalt API 11.7.1
-   - Audio MP3
-   - Hasil disimpan ke IndexedDB
-   - Tidak mengubah sistem playback
-   - Tidak mengubah YouTube player
-   - Tidak mengubah Media Session
+   Fungsi ini:
+   1. Mengambil MP3 melalui Cobalt
+   2. Menyimpan Blob ke IndexedDB
+   3. Menghindari duplikasi
+   4. Dapat dipakai tombol Save Offline
+   5. Dapat dipakai Play -> Auto Save -> Auto Play
 ========================================================= */
 
-async function downloadCobalt(song, button){
+async function downloadCobalt(
+  song,
+  button = null,
+  options = {}
+){
 
   if(
     !song ||
@@ -2651,6 +2760,55 @@ async function downloadCobalt(song, button){
   ){
 
     return null;
+
+  }
+
+
+  const autoPlay =
+    options.autoPlay === true;
+
+
+  /* =====================================================
+     CEK SUDAH OFFLINE
+  ===================================================== */
+
+  const existing =
+    getOfflineSong(
+      song.videoId
+    );
+
+
+  if(existing){
+
+    if(button){
+
+      button.textContent =
+        "✓ Offline";
+
+    }
+
+
+    if(autoPlay){
+
+      const index =
+        songs.findIndex(
+          item =>
+            item.id === existing.id
+        );
+
+
+      if(index >= 0){
+
+        playSong(
+          index
+        );
+
+      }
+
+    }
+
+
+    return existing;
 
   }
 
@@ -2673,7 +2831,19 @@ async function downloadCobalt(song, button){
         true;
 
       button.textContent =
-        "⏳ Memproses...";
+        autoPlay
+        ?
+        "⏳ Menyiapkan..."
+        :
+        "⏳ Menyimpan...";
+
+    }
+
+
+    if($("status")){
+
+      $("status").textContent =
+        "Mengambil audio...";
 
     }
 
@@ -2690,19 +2860,7 @@ async function downloadCobalt(song, button){
 
 
     /* =====================================================
-       COBALT 11.7.1 REQUEST
-       -----------------------------------------------------
-       PENTING:
-       Jangan menggunakan:
-
-       isAudioOnly
-       audioQuality
-       filenameStyle
-       disableMetadata
-       embedMetadata
-
-       karena payload tersebut bukan payload
-       minimal yang kita gunakan untuk Cobalt 11.7.1.
+       COBALT REQUEST
     ===================================================== */
 
     const response =
@@ -2740,10 +2898,7 @@ async function downloadCobalt(song, button){
 
 
     /* =====================================================
-       BACA RESPONSE SEBAGAI TEXT DULU
-       -----------------------------------------------------
-       Supaya error Cobalt tetap terlihat walaupun
-       response bukan JSON sempurna.
+       RESPONSE TEXT
     ===================================================== */
 
     const responseText =
@@ -2761,10 +2916,6 @@ async function downloadCobalt(song, button){
       responseText
     );
 
-
-    /* =====================================================
-       HTTP ERROR
-    ===================================================== */
 
     if(!response.ok){
 
@@ -2821,9 +2972,11 @@ async function downloadCobalt(song, button){
         data.error?.code ||
         "";
 
+
       const cobaltMessage =
         data.error?.message ||
         "";
+
 
       throw new Error(
         cobaltCode ||
@@ -2836,10 +2989,6 @@ async function downloadCobalt(song, button){
 
     /* =====================================================
        VALIDATE RESULT
-       -----------------------------------------------------
-       Cobalt dapat memberikan:
-       - tunnel
-       - redirect
     ===================================================== */
 
     if(
@@ -2860,19 +3009,7 @@ async function downloadCobalt(song, button){
     }
 
 
-    /* =====================================================
-       RESULT URL
-    ===================================================== */
-
-    if(
-      !data.url
-    ){
-
-      console.error(
-        "Cobalt tidak memberikan URL:",
-        data
-      );
-
+    if(!data.url){
 
       throw new Error(
         "URL hasil download tidak ditemukan"
@@ -2889,6 +3026,14 @@ async function downloadCobalt(song, button){
 
       button.textContent =
         "⬇ Mengambil MP3...";
+
+    }
+
+
+    if($("status")){
+
+      $("status").textContent =
+        "Mengunduh audio...";
 
     }
 
@@ -2911,7 +3056,7 @@ async function downloadCobalt(song, button){
 
 
     /* =====================================================
-       CONVERT RESPONSE TO BLOB
+       BLOB
     ===================================================== */
 
     const blob =
@@ -2930,12 +3075,6 @@ async function downloadCobalt(song, button){
     }
 
 
-    /* =====================================================
-       FORCE AUDIO MIME
-       -----------------------------------------------------
-       Supaya IndexedDB menyimpan sebagai audio/mpeg
-    ===================================================== */
-
     const mp3Blob =
       new Blob(
         [blob],
@@ -2947,9 +3086,7 @@ async function downloadCobalt(song, button){
 
 
     /* =====================================================
-       CREATE LOCAL SONG
-       -----------------------------------------------------
-       Struktur tetap kompatibel dengan library MyMusic
+       CREATE OFFLINE SONG
     ===================================================== */
 
     const downloadedSong = {
@@ -2990,7 +3127,7 @@ async function downloadCobalt(song, button){
 
 
     /* =====================================================
-       SAVE TO INDEXEDDB
+       SAVE INDEXEDDB
     ===================================================== */
 
     await saveSong(
@@ -2999,7 +3136,7 @@ async function downloadCobalt(song, button){
 
 
     /* =====================================================
-       REFRESH LIBRARY
+       REFRESH STATE
     ===================================================== */
 
     songs =
@@ -3010,13 +3147,13 @@ async function downloadCobalt(song, button){
 
 
     /* =====================================================
-       SUCCESS STATE
+       SUCCESS
     ===================================================== */
 
     if(button){
 
       button.textContent =
-        "✓ Tersimpan";
+        "✓ Offline";
 
     }
 
@@ -3024,7 +3161,32 @@ async function downloadCobalt(song, button){
     if($("status")){
 
       $("status").textContent =
-        "MP3 tersimpan di Library";
+        "✓ Tersimpan Offline";
+
+    }
+
+
+    /* =====================================================
+       AUTO PLAY
+    ===================================================== */
+
+    if(autoPlay){
+
+      const index =
+        songs.findIndex(
+          item =>
+            item.id ===
+            downloadedSong.id
+        );
+
+
+      if(index >= 0){
+
+        playSong(
+          index
+        );
+
+      }
 
     }
 
@@ -3034,12 +3196,8 @@ async function downloadCobalt(song, button){
 
   }catch(error){
 
-    /* =====================================================
-       ERROR
-    ===================================================== */
-
     console.error(
-      "Cobalt download error:",
+      "Cobalt offline error:",
       error
     );
 
@@ -3055,25 +3213,25 @@ async function downloadCobalt(song, button){
     if($("status")){
 
       $("status").textContent =
-        "Download gagal";
+        "Gagal menyimpan offline";
 
     }
 
 
-    alert(
-      "Download gagal:\n\n" +
-      error.message
-    );
+    if(!autoPlay){
+
+      alert(
+        "Simpan offline gagal:\n\n" +
+        error.message
+      );
+
+    }
 
 
     return null;
 
 
   }finally{
-
-    /* =====================================================
-       RESTORE BUTTON
-    ===================================================== */
 
     if(button){
 
@@ -3093,7 +3251,9 @@ async function downloadCobalt(song, button){
 
             if(
               button.textContent ===
-                "⏳ Memproses..." ||
+                "⏳ Menyimpan..." ||
+              button.textContent ===
+                "⏳ Menyiapkan..." ||
               button.textContent ===
                 "⬇ Mengambil MP3..." ||
               button.textContent ===
@@ -3102,7 +3262,7 @@ async function downloadCobalt(song, button){
 
               button.textContent =
                 originalText ||
-                "⬇ Download";
+                "⬇ Simpan Offline";
 
             }
 
@@ -3117,6 +3277,7 @@ async function downloadCobalt(song, button){
   }
 
 }
+
 
 /* =========================================================
    SHOW YOUTUBE RESULTS
@@ -3164,6 +3325,12 @@ function showResults(results){
         "result";
 
 
+      const offline =
+        isSongOffline(
+          song
+        );
+
+
       item.innerHTML = `
 
         <img
@@ -3196,8 +3363,17 @@ function showResults(results){
             </button>
 
 
-            <button class="d">
-              ⬇ Download
+            <button
+              class="d"
+              ${offline ? "disabled" : ""}
+            >
+              ${
+                offline
+                ?
+                "✓ Offline"
+                :
+                "⬇ Simpan Offline"
+              }
             </button>
 
           </div>
@@ -3225,52 +3401,134 @@ function showResults(results){
         );
 
 
+      /* ===================================================
+         PLAY RESULT
+         ---------------------------------------------------
+         BELUM OFFLINE:
+           Cobalt -> IndexedDB -> Local Play
+
+         SUDAH OFFLINE:
+           Langsung Local Play
+      =================================================== */
+
       if(playButton){
 
         playButton.onclick =
-          () => {
+          async event => {
 
-            /*
-               Masukkan ke state sementara
-               agar Play tetap bekerja seperti
-               kode lama.
-            */
+            event.stopPropagation();
 
-            playYT(
-              song
+
+            const offlineSong =
+              getOfflineSong(
+                song.videoId
+              );
+
+
+            if(offlineSong){
+
+              const index =
+                songs.findIndex(
+                  item =>
+                    item.id ===
+                    offlineSong.id
+                );
+
+
+              if(index >= 0){
+
+                closeResults();
+
+
+                playSong(
+                  index
+                );
+
+              }
+
+
+              return;
+
+            }
+
+
+            await downloadCobalt(
+              song,
+              playButton,
+              {
+                autoPlay:
+                  true
+              }
             );
 
 
-            closeResults();
+            /*
+               Setelah berhasil disimpan
+               dan dimainkan, tutup hasil.
+            */
+
+            if(
+              getOfflineSong(
+                song.videoId
+              )
+            ){
+
+              closeResults();
+
+            }
 
           };
 
       }
 
+
+      /* ===================================================
+         ADD PLAYLIST
+      =================================================== */
 
       if(addButton){
 
         addButton.onclick =
-          async () => {
+          async event => {
 
-            await saveSong(
-              song
-            );
+            event.stopPropagation();
 
 
-            songs =
-              await getSongs();
+            const exists =
+              songs.some(
+                item =>
+                  item.id ===
+                  song.id
+              );
 
 
-            render();
+            if(!exists){
+
+              await saveSong(
+                song
+              );
 
 
-            closeResults();
+              songs =
+                await getSongs();
+
+
+              render();
+
+            }
+
+
+            addButton.textContent =
+              "✓ Playlist";
 
           };
 
       }
 
+
+      /* ===================================================
+         SAVE OFFLINE
+      =================================================== */
 
       if(downloadButton){
 
@@ -3280,9 +3538,35 @@ function showResults(results){
             event.stopPropagation();
 
 
+            if(
+              isSongOffline(
+                song
+              )
+            ){
+
+              downloadButton.textContent =
+                "✓ Offline";
+
+
+              return;
+
+            }
+
+
             await downloadCobalt(
               song,
               downloadButton
+            );
+
+
+            /*
+               Refresh result agar
+               status Offline langsung
+               terlihat.
+            */
+
+            showResults(
+              results
             );
 
           };
@@ -3338,8 +3622,10 @@ if($("query")){
 
 /* =========================================================
    END OF PART 1
-========================================================= */
-
+   ---------------------------------------------------------
+   PART 2 DITEMPEL LANGSUNG SETELAH BARIS INI.
+========================================================= 
+*/
 /* =========================================================
    MYMUSIC V2 — APP.JS
    PART 2
@@ -3347,8 +3633,19 @@ if($("query")){
    YOUTUBE PLAYER
    YOUTUBE IFRAME API
    DURATION
-   BACKGROUND / LOCK SCREEN LIMITATION
+   BACKGROUND / LOCK SCREEN
+   AUTO OFFLINE CACHE
    INITIALIZATION
+
+   FITUR AUTO OFFLINE
+   ---------------------------------------------------------
+   - Saat YouTube pertama kali dimainkan, sistem mencoba
+     menyimpan audio ke IndexedDB secara background.
+   - Pemutaran YouTube TIDAK menunggu proses penyimpanan.
+   - Jika sudah tersimpan, tidak download ulang.
+   - Jika offline tersedia, lagu dapat dimainkan sebagai
+     LOCAL AUDIO melalui HTMLAudioElement.
+   - Media Session tetap menggunakan sistem LOCAL.
 ========================================================= */
 
 
@@ -3450,8 +3747,8 @@ function loadYouTubeAPI(){
 
 
   /*
-     Jika script sudah ada,
-     jangan masukkan dua kali.
+     Jangan memasukkan script
+     YouTube API dua kali.
   */
 
   if(
@@ -3637,6 +3934,597 @@ function onYTReady(){
 
 
 /* =========================================================
+   CHECK OFFLINE COPY
+   ---------------------------------------------------------
+   Mengecek apakah lagu YouTube sudah pernah
+   disimpan sebagai lagu lokal.
+========================================================= */
+
+async function getOfflineYouTubeSong(videoId){
+
+  if(
+    !videoId ||
+    !db
+  ){
+
+    return null;
+
+  }
+
+
+  try{
+
+    const id =
+      "cobalt_" +
+      videoId;
+
+
+    return await new Promise(
+      resolve => {
+
+        const request =
+          db
+            .transaction(
+              "songs"
+            )
+            .objectStore(
+              "songs"
+            )
+            .get(id);
+
+
+        request.onsuccess =
+          () => {
+
+            const song =
+              request.result;
+
+
+            if(
+              song &&
+              song.blob &&
+              song.blob.size
+            ){
+
+              resolve(
+                song
+              );
+
+            }else{
+
+              resolve(
+                null
+              );
+
+            }
+
+          };
+
+
+        request.onerror =
+          () => {
+
+            resolve(
+              null
+            );
+
+          };
+
+      }
+    );
+
+  }catch(error){
+
+    console.warn(
+      "Check offline song gagal:",
+      error
+    );
+
+
+    return null;
+
+  }
+
+}
+
+
+/* =========================================================
+   AUTO OFFLINE CACHE STATE
+   ---------------------------------------------------------
+   Menyimpan video ID yang sedang diproses supaya
+   tidak terjadi dua download sekaligus.
+========================================================= */
+
+const offlineCaching =
+  new Set();
+
+
+/* =========================================================
+   AUTO SAVE YOUTUBE OFFLINE
+   ---------------------------------------------------------
+   Fitur baru:
+   Setelah user memainkan lagu YouTube, sistem
+   mencoba mengambil versi audio melalui Cobalt
+   dan menyimpannya ke IndexedDB.
+
+   PENTING:
+   - Tidak menunggu proses ini untuk playback.
+   - Tidak mematikan YouTube.
+   - Error tidak mengganggu playback.
+========================================================= */
+
+async function cacheYouTubeOffline(song){
+
+  if(
+    !song ||
+    !song.videoId
+  ){
+
+    return null;
+
+  }
+
+
+  /*
+     Jangan cache lagu yang sudah lokal.
+  */
+
+  if(
+    song.type ===
+    "local"
+  ){
+
+    return null;
+
+  }
+
+
+  const videoId =
+    song.videoId;
+
+
+  /*
+     Jangan proses dua kali.
+  */
+
+  if(
+    offlineCaching.has(
+      videoId
+    )
+  ){
+
+    return null;
+
+  }
+
+
+  /*
+     Cek apakah sudah tersimpan.
+  */
+
+  try{
+
+    const existing =
+      await getOfflineYouTubeSong(
+        videoId
+      );
+
+
+    if(existing){
+
+      /*
+         Tandai hasil pencarian sebagai
+         sudah tersedia offline.
+      */
+
+      song.offline =
+        true;
+
+
+      song.offlineId =
+        existing.id;
+
+
+      return existing;
+
+    }
+
+  }catch(error){
+
+    console.warn(
+      "Offline check:",
+      error
+    );
+
+  }
+
+
+  /*
+     Masukkan ke state proses.
+  */
+
+  offlineCaching.add(
+    videoId
+  );
+
+
+  try{
+
+    /*
+       Status kecil saja.
+       Jangan mengubah status menjadi error.
+    */
+
+    if($("status")){
+
+      $("status").textContent =
+        "YouTube • Playing • Menyimpan offline...";
+
+    }
+
+
+    /*
+       URL YouTube
+    */
+
+    const youtubeURL =
+      "https://www.youtube.com/watch?v=" +
+      encodeURIComponent(
+        videoId
+      );
+
+
+    /*
+       Gunakan endpoint Cobalt yang
+       sama dengan download manual.
+    */
+
+    const response =
+      await fetch(
+        COBALT_API,
+        {
+
+          method:
+            "POST",
+
+          headers:{
+            "Accept":
+              "application/json",
+
+            "Content-Type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify({
+
+              url:
+                youtubeURL,
+
+              downloadMode:
+                "audio",
+
+              audioFormat:
+                "mp3"
+
+            })
+
+        }
+      );
+
+
+    const responseText =
+      await response.text();
+
+
+    if(!response.ok){
+
+      throw new Error(
+        "Cobalt HTTP " +
+        response.status
+      );
+
+    }
+
+
+    let data;
+
+
+    try{
+
+      data =
+        JSON.parse(
+          responseText
+        );
+
+    }catch(error){
+
+      throw new Error(
+        "Response Cobalt bukan JSON"
+      );
+
+    }
+
+
+    /*
+       Cobalt error
+    */
+
+    if(
+      data.status ===
+      "error"
+    ){
+
+      throw new Error(
+        data.error?.code ||
+        data.error?.message ||
+        "Cobalt gagal"
+      );
+
+    }
+
+
+    /*
+       Cobalt harus mengembalikan
+       tunnel atau redirect.
+    */
+
+    if(
+      data.status !==
+        "tunnel" &&
+      data.status !==
+        "redirect"
+    ){
+
+      throw new Error(
+        "Status Cobalt tidak valid"
+      );
+
+    }
+
+
+    if(
+      !data.url
+    ){
+
+      throw new Error(
+        "URL audio tidak tersedia"
+      );
+
+    }
+
+
+    /*
+       Ambil file audio.
+    */
+
+    const fileResponse =
+      await fetch(
+        data.url
+      );
+
+
+    if(!fileResponse.ok){
+
+      throw new Error(
+        "Gagal mengambil audio (" +
+        fileResponse.status +
+        ")"
+      );
+
+    }
+
+
+    const blob =
+      await fileResponse.blob();
+
+
+    if(
+      !blob ||
+      !blob.size
+    ){
+
+      throw new Error(
+        "Audio kosong"
+      );
+
+    }
+
+
+    /*
+       Pastikan MIME audio.
+    */
+
+    const mp3Blob =
+      new Blob(
+        [blob],
+        {
+          type:
+            "audio/mpeg"
+        }
+      );
+
+
+    /*
+       Ambil duration dari song
+       atau dari YouTube player.
+    */
+
+    let duration =
+      song.duration ||
+      0;
+
+
+    try{
+
+      if(
+        yt &&
+        ytReady
+      ){
+
+        const ytDuration =
+          yt.getDuration();
+
+
+        if(
+          ytDuration &&
+          isFinite(
+            ytDuration
+          )
+        ){
+
+          duration =
+            ytDuration;
+
+        }
+
+      }
+
+    }catch(error){}
+
+
+    /*
+       ID dibuat sama dengan sistem
+       download manual Cobalt.
+       Jadi tidak membuat duplicate.
+    */
+
+    const downloadedSong = {
+
+      id:
+        "cobalt_" +
+        videoId,
+
+      type:
+        "local",
+
+      source:
+        "cobalt",
+
+      videoId:
+        videoId,
+
+      title:
+        song.title ||
+        "YouTube Music",
+
+      artist:
+        song.artist ||
+        "YouTube",
+
+      thumb:
+        song.thumb ||
+        "",
+
+      blob:
+        mp3Blob,
+
+      duration:
+        duration
+
+    };
+
+
+    /*
+       Simpan ke IndexedDB.
+    */
+
+    await saveSong(
+      downloadedSong
+    );
+
+
+    /*
+       Tandai object hasil pencarian
+       sebagai tersedia offline.
+    */
+
+    song.offline =
+      true;
+
+
+    song.offlineId =
+      downloadedSong.id;
+
+
+    /*
+       Refresh library.
+    */
+
+    songs =
+      await getSongs();
+
+
+    render();
+
+
+    /*
+       Jika lagu yang sedang diputar
+       masih lagu YouTube, jangan ganti
+       playback-nya menjadi local secara
+       otomatis.
+
+       Jadi user tetap mendengar YouTube
+       sampai selesai.
+    */
+
+    if(
+      current >= 0 &&
+      songs[current] &&
+      songs[current].videoId ===
+        videoId
+    ){
+
+      /*
+         Jangan melakukan playSong()
+         di sini.
+      */
+
+      if($("status")){
+
+        $("status").textContent =
+          "YouTube • Playing • ✓ Offline tersimpan";
+
+      }
+
+    }
+
+
+    console.log(
+      "MyMusic offline saved:",
+      downloadedSong.title
+    );
+
+
+    return downloadedSong;
+
+  }catch(error){
+
+    /*
+       Gagal menyimpan offline tidak boleh
+       membuat lagu YouTube berhenti.
+    */
+
+    console.warn(
+      "Auto offline cache gagal:",
+      error
+    );
+
+
+    return null;
+
+  }finally{
+
+    offlineCaching.delete(
+      videoId
+    );
+
+  }
+
+}
+
+
+/* =========================================================
    PLAY YOUTUBE
 ========================================================= */
 
@@ -3670,6 +4558,32 @@ function playYT(song){
       index;
 
   }
+
+
+  /*
+     -------------------------------------------------------
+     AUTO OFFLINE CACHE
+     -------------------------------------------------------
+     Jalankan langsung tanpa await.
+
+     Artinya:
+     YouTube tetap bisa mulai play tanpa
+     menunggu proses Cobalt selesai.
+     -------------------------------------------------------
+  */
+
+  cacheYouTubeOffline(
+    song
+  ).catch(
+    error => {
+
+      console.warn(
+        "Background offline cache:",
+        error
+      );
+
+    }
+  );
 
 
   /*
@@ -3899,7 +4813,9 @@ function onYTStateChange(event){
 
 
   /*
+     =======================================================
      PLAYING
+     =======================================================
   */
 
   if(
@@ -3937,13 +4853,42 @@ function onYTStateChange(event){
     startYTTimer();
 
 
+    /*
+       Pastikan cache offline tetap
+       dicoba ketika benar-benar
+       sudah mulai playing.
+
+       Karena playYT() juga sudah
+       menjalankan fungsi ini, fungsi
+       kedua tidak akan berjalan
+       bersamaan berkat Set.
+    */
+
+    if(
+      current >= 0 &&
+      songs[current] &&
+      songs[current].type ===
+        "yt"
+    ){
+
+      cacheYouTubeOffline(
+        songs[current]
+      ).catch(
+        () => {}
+      );
+
+    }
+
+
     return;
 
   }
 
 
   /*
+     =======================================================
      PAUSED
+     =======================================================
   */
 
   if(
@@ -3984,7 +4929,9 @@ function onYTStateChange(event){
 
 
   /*
+     =======================================================
      BUFFERING
+     =======================================================
   */
 
   if(
@@ -4006,7 +4953,9 @@ function onYTStateChange(event){
 
 
   /*
+     =======================================================
      ENDED
+     =======================================================
   */
 
   if(
@@ -4092,7 +5041,8 @@ function onYTError(event){
 
 
   if(
-    event.data === 100
+    event.data ===
+    100
   ){
 
     message =
@@ -4266,8 +5216,7 @@ function updateYTProgress(){
 
 
     /*
-       Simpan durasi YouTube
-       ke song.
+       Simpan duration YouTube.
     */
 
     if(
@@ -4367,8 +5316,8 @@ function updateYTDuration(){
    YOUTUBE SEARCH RESULT DURATION
    ---------------------------------------------------------
    Search API tidak memberikan duration.
-   Kita ambil duration melalui YouTube
-   player ketika video dimainkan.
+   Duration diambil ketika video
+   dimainkan.
 ========================================================= */
 
 
@@ -4454,39 +5403,12 @@ document.addEventListener(
       return;
 
 
-    const title =
-      result.querySelector(
-        ".ri b"
-      )?.textContent ||
-      "";
-
-
-    const artist =
-      result.querySelector(
-        ".ri small"
-      )?.textContent ||
-      "";
-
-
-    /*
-       Hindari double action jika
-       handler lokal sudah melakukan
-       saveSong().
-    */
-
-    if(
-      button.dataset.handled ===
-      "true"
-    ){
-
-      return;
-
-    }
-
-
     /*
        Handler utama sudah dipasang
-       pada showResults().
+       pada showResults() Part 1.
+
+       Tidak melakukan action kedua
+       di sini supaya tidak duplicate.
     */
 
   }
@@ -4516,6 +5438,7 @@ if($("results")){
       /*
          Jangan membuat klik area
          hasil ikut memutar video.
+
          Hanya tombol Play yang
          melakukan aksi.
       */
@@ -4551,20 +5474,10 @@ function isSupportedAudioFile(file){
 /* =========================================================
    REPLACE FILE IMPORT HANDLER
    ---------------------------------------------------------
-   Tetap menggunakan #files yang
-   sudah dibuat pada Part 1.
+   Handler utama tetap berasal dari Part 1.
 ========================================================= */
 
 if($("files")){
-
-  /*
-     Handler Part 1 sudah terpasang.
-     Kita tidak menggantinya agar
-     fitur lama tetap utuh.
-
-     Validasi tambahan dilakukan
-     melalui event capture.
-  */
 
   $("files").addEventListener(
     "change",
@@ -4671,7 +5584,7 @@ document.addEventListener(
 
 
     /*
-       Space = Play/Pause
+       Space = Play / Pause
     */
 
     if(
@@ -4795,8 +5708,7 @@ async function initMyMusic(){
 
     /*
        YouTube API.
-       Tidak langsung membuat player
-       sebelum diperlukan.
+       Player tidak langsung dibuat.
     */
 
     loadYouTubeAPI();
@@ -4818,7 +5730,7 @@ async function initMyMusic(){
 
 
     /*
-       Restore tombol.
+       Restore tombol shuffle.
     */
 
     if($("shuffle")){
@@ -4831,6 +5743,10 @@ async function initMyMusic(){
 
     }
 
+
+    /*
+       Restore tombol repeat.
+    */
 
     if($("repeat")){
 
@@ -5005,12 +5921,8 @@ window.addEventListener(
   () => {
 
     /*
-       Lagu LOCAL tetap dapat
-       dimainkan karena Blob berada
-       di IndexedDB.
-
-       YouTube tidak dipaksa
-       berhenti di sini.
+       Lagu LOCAL tetap dapat dimainkan
+       karena Blob berada di IndexedDB.
     */
 
     if(
@@ -5103,11 +6015,25 @@ window.MyMusic = {
       song
     );
 
+  },
+
+
+  /*
+     Manual trigger untuk menyimpan
+     lagu YouTube ke offline.
+  */
+
+  saveOffline(song){
+
+    return cacheYouTubeOffline(
+      song
+    );
+
   }
 
 };
 
 
 /* =========================================================
-   END OF MYMUSIC V2 — APP.JS
+   END OF MYMUSIC V2 — APP.JS PART 2
 ========================================================= */
