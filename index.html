@@ -91,22 +91,51 @@
 <script src="https://www.youtube.com/iframe_api"></script>
 <script src="script.js"></script>
 
-  <button onclick="document.getElementById('radioBox').style.display='block'; renderRadio()" style="width:100%; padding:14px; background:linear-gradient(90deg, #ff0066, #ff9900); color:#fff; border:none; border-radius:12px; font-size:16px; font-weight:bold; margin:16px 0;">
-  📻 Buka Radio Hits
-</button>
+  <script>
+// DATA RADIO
+const radioList = [
+  {name:"Prambors FM", city:"Jakarta", url:"https://stream.zeno.fm/0r0a792kwz8uv", logo:"https://img2.gratispng.com/20191121/sj/transparent-prambors-radio-5dd5a9a6b2b0d1.9084561815746410627309.jpg"},
+  {name:"Gen FM", city:"Jakarta", url:"https://stream.zeno.fm/u4b3nq6e6y0uv", logo:"https://upload.wikimedia.org/wikipedia/id/9/9c/Logo_Gen_98.7_FM.png"},
+  {name:"Cirebon FM", city:"Cirebon", url:"https://stream.zeno.fm/8q3x3v8k6y0uv", logo:"https://i.imgur.com/8Kk3Q9p.png"}
+];
 
-<!-- KOTAK INI YG KURANG -->
-<div id="radioBox" style="display:none; margin-top:10px;">
-  <input type="text" id="radioSearch" placeholder="Cari: prambors, gen, cirebon..." onkeyup="searchRadio()" style="width:100%; padding:10px; margin-bottom:12px; border-radius:8px; border:1px solid #333; background:#222; color:#fff;">
-  
-  <div id="radioList"></div> <!-- INI TEMPAT PRAMBORS, GEN, CIREBON MUNCUL -->
-</div>
+// FUNGSI NAMPILIN
+function renderRadio(list = radioList){
+  console.log("renderRadio jalan", list.length); // buat debug
+  const container = document.getElementById('radioList');
+  container.innerHTML = '';
+  list.forEach(radio => {
+    container.innerHTML += `<div onclick="playRadio('${radio.name}', '${radio.url}')" style="display:flex; align-items:center; gap:12px; padding:10px; background:#222; border-radius:12px; cursor:pointer; color:#fff; margin-bottom:8px;">
+      <img src="${radio.logo}" style="width:50px; height:50px; border-radius:8px;">
+      <div><b>${radio.name}</b><br><small style="color:#aaa;">${radio.city}</small></div>
+      <span style="margin-left:auto;">▶️</span>
+    </div>`;
+  });
+}
 
-<div id="nowPlayingRadio" style="position:fixed; bottom:70px; left:16px; right:16px; background:#111; color:#fff; padding:12px; border-radius:12px; display:none; z-index:999;">
-  <b id="radioName">-</b>
-  <button onclick="stopRadio()" style="float:right; background:red; color:#fff; border:none; padding:5px 10px; border-radius:6px;">Stop</button>
-</div>
-<audio id="radioPlayer" style="display:none;"></audio>
+// FUNGSI PLAY
+function playRadio(name, url){
+  const audio = document.getElementById('radioPlayer');
+  audio.src = url; 
+  audio.play().then(()=>{
+    document.getElementById('nowPlayingRadio').style.display = 'block';
+    document.getElementById('radioName').innerText = "🔴 LIVE: " + name;
+  }).catch(err => alert("Gagal play: " + err));
+}
+
+// FUNGSI STOP
+function stopRadio(){
+  const audio = document.getElementById('radioPlayer');
+  audio.pause(); audio.src='';
+  document.getElementById('nowPlayingRadio').style.display = 'none';
+}
+
+// FUNGSI CARI
+function searchRadio(){
+  const q = document.getElementById('radioSearch').value.toLowerCase();
+  renderRadio(radioList.filter(r => r.name.toLowerCase().includes(q) || r.city.toLowerCase().includes(q)));
+}
+</script>
 
   
 </body>
