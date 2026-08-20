@@ -92,6 +92,17 @@
 <script src="script.js"></script>
 
   <section id="radioPage" style="display:none; padding:16px;">
+  <button onclick="showPage('mainPage')" style="background:none; border:none; font-size:16px; margin-bottom:12px;">← Kembali</button>
+  <h2>📻 Radio Indonesia</h2>
+  <input type="text" id="radioSearch" placeholder="Cari: prambors, gen, cirebon..." onkeyup="searchRadio()" style="width:100%; padding:10px; margin-bottom:12px; border-radius:8px; border:1px solid #ddd;">
+  <div id="radioList"></div>
+  <div id="nowPlayingRadio" style="position:fixed; bottom:70px; left:0; right:0; background:#111; color:#fff; padding:12px 16px; display:none; z-index:999;">
+    <b id="radioName">-</b>
+    <button onclick="stopRadio()" style="float:right; background:red; color:#fff; border:none; padding:5px 10px; border-radius:6px;">Stop</button>
+  </div>
+</section>
+<audio id="radioPlayer" style="display:none;"></audio>
+  <section id="radioPage" style="display:none; padding:16px;">
   <h2>📻 Radio Indonesia</h2>
   <input type="text" id="radioSearch" placeholder="Cari: prambors, gen, cirebon..." onkeyup="searchRadio()" style="width:100%; padding:10px; margin-bottom:12px; border-radius:8px; border:1px solid #ddd;">
   <div id="radioList"></div>
@@ -103,6 +114,11 @@
 <audio id="radioPlayer" style="display:none;"></audio>
 
   <button onclick="showPage('radioPage')">📻 Radio</button>
+<div style="padding:16px;">
+  <button onclick="showPage('radioPage')" style="width:100%; padding:14px; background:linear-gradient(90deg, #ff0066, #ff9900); color:#fff; border:none; border-radius:12px; font-size:16px; font-weight:bold;">
+    📻 Buka Radio Hits
+  </button>
+</div>
   
 </body>
 </html>
