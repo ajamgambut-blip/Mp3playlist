@@ -6123,9 +6123,8 @@ window.MyMusic = {
 
 */
 const PIPED=[
-"https://pipedapi.kavin.rocks",
-"https://pipedapi.adminforge.de",
-"https://pipedapi.reallyaweso.me"
+"https://pipedapi.wireway.ch",
+"https://api.piped.private.coffee"
 ];
 
 async function getPipedAudio(id){
