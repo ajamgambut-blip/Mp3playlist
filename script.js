@@ -6426,4 +6426,43 @@ window.MyMusic = {
 
 /* =========================================================
    END OF MYMUSIC V2 — APP.JS PART 2
-========================================================= */
+========================================================= 
+
+*/
+const PIPED=[
+"https://pipedapi.kavin.rocks",
+"https://pipedapi.adminforge.de",
+"https://pipedapi.reallyaweso.me"
+];
+
+async function getPipedAudio(id){
+  for(const api of PIPED){
+    try{
+      const c=new AbortController();
+      const t=setTimeout(()=>c.abort(),8000);
+
+      const r=await fetch(`${api}/streams/${id}`,{
+        signal:c.signal
+      });
+
+      clearTimeout(t);
+
+      if(!r.ok)continue;
+
+      const d=await r.json();
+
+      const s=(d.audioStreams||[])
+        .filter(x=>x.url&&!x.videoOnly)
+        .sort((a,b)=>(b.bitrate||0)-(a.bitrate||0))[0];
+
+      if(s){
+        console.log("Piped OK:",api);
+        return s.url;
+      }
+    }catch(e){
+      console.warn("Piped gagal:",api);
+    }
+  }
+
+  throw new Error("Semua Piped gagal");
+}
