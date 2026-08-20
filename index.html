@@ -90,9 +90,8 @@
 
 <script src="https://www.youtube.com/iframe_api"></script>
 <script src="script.js"></script>
-    
 
-    <!-- TOMBOL BUKA RADIO -->
+<!-- TOMBOL BUKA RADIO -->
 <button onclick="document.getElementById('radioBox').style.display='block'; renderRadio()" 
   style="width:100%; padding:12px; margin:12px 0; background:#1DB954; color:#000; border:none; border-radius:12px; font-weight:700; font-size:16px;">
   📻 Buka Radio Hits
@@ -102,20 +101,22 @@
 <div id="radioBox" style="display:none; background:#111; padding:12px; border-radius:16px; margin:12px 0;">
   <input id="radioSearch" oninput="searchRadio()" placeholder="Cari radio..." 
     style="width:100%; padding:10px; border-radius:8px; border:none; margin-bottom:10px; background:#222; color:#fff;">
-  <div id="radioList"></div> <!-- INI YANG KURANG TADI -->
+  <div id="radioList"></div>
   <button onclick="document.getElementById('radioBox').style.display='none'" 
     style="width:100%; margin-top:10px; padding:8px; background:#333; color:#fff; border:none; border-radius:8px;">Tutup</button>
 </div>
 
 <!-- BAR NOW PLAYING -->
-<div id="nowPlayingRadio" style="display:none; position:fixed; bottom:0; left:0; right:0; background:#1DB954; color:#000; padding:10px; display:flex; align-items:center; gap:10px;">
+<div id="nowPlayingRadio" style="display:none; position:fixed; bottom:0; left:0; right:0; background:#1DB954; color:#000; padding:10px; align-items:center; gap:10px;">
   <img id="radioLogo" src="" style="width:40px; height:40px; border-radius:6px;">
   <b id="radioName">Radio</b>
   <button onclick="stopRadio()" style="margin-left:auto; background:#000; color:#fff; border:none; padding:6px 12px; border-radius:8px;">Stop</button>
 </div>
 
-<!-- AUDIO KHUSUS RADIO -->
+<!-- AUDIO KHUS RADIO -->
 <audio id="radioPlayer"></audio>
+
+<script>
 // DATA RADIO
 const radioList = [
   {name:"Prambors FM", city:"Jakarta", url:"https://stream.zeno.fm/0r0a792kwz8uv", logo:"https://img2.gratispng.com/20191121/sj/transparent-prambors-radio-5dd5a9a6b2b0d1.9084561815746410627309.jpg"},
@@ -125,19 +126,17 @@ const radioList = [
 
 // FUNGSI NAMPILIN
 function renderRadio(list = radioList){
-  console.log("renderRadio jalan", list.length); // buat debug
   const container = document.getElementById('radioList');
   container.innerHTML = '';
   list.forEach(radio => {
     container.innerHTML += `<div onclick="playRadio('${radio.name}', '${radio.url}', '${radio.logo}')" style="display:flex; align-items:center; gap:12px; padding:10px; background:#222; border-radius:12px; cursor:pointer; color:#fff; margin-bottom:8px;">
-  <img src="${radio.logo}" style="width:50px; height:50px; border-radius:8px;">
-  <div><b>${radio.name}</b><br><small style="color:#aaa;">${radio.city}</small></div>
-  <span style="margin-left:auto;">▶️</span>
-</div>`;
+      <img src="${radio.logo}" style="width:50px; height:50px; border-radius:8px;">
+      <div><b>${radio.name}</b><br><small style="color:#aaa;">${radio.city}</small></div>
+      <span style="margin-left:auto;">▶️</span>
+    </div>`;
   });
 }
 
-    
 // FUNGSI PLAY
 function playRadio(name, url, logo){
   const audio = document.getElementById('radioPlayer');
@@ -162,7 +161,6 @@ function searchRadio(){
   renderRadio(radioList.filter(r => r.name.toLowerCase().includes(q) || r.city.toLowerCase().includes(q)));
 }
 </script>
-
   
 </body>
 </html>
