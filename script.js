@@ -24,6 +24,7 @@
    - Save Offline menyimpan audio ke IndexedDB
 ========================================================= */
 
+
 /* =========================================================
    YOUTUBE API
 ========================================================= */
@@ -2698,106 +2699,413 @@ function closeResults(){
    yang sama, tetapi hasil akhirnya berbeda.
 ========================================================= */
 
-async function getCobaltBlob(song,button){
+async function getCobaltBlob(song, button){
 
-  if(!song?.videoId)
-    throw new Error("Video YouTube tidak valid");
+  if(
+    !song ||
+    !song.videoId
+  ){
 
-  const youtubeURL=
-    "https://www.youtube.com/watch?v="+
-    encodeURIComponent(song.videoId);
-
-  try{
-
-    const r=await fetch(COBALT_API,{
-      method:"POST",
-      headers:{
-        "Accept":"application/json",
-        "Content-Type":"application/json"
-      },
-      body:JSON.stringify({
-        url:youtubeURL,
-        downloadMode:"audio",
-        audioFormat:"mp3"
-      })
-    });
-
-    const text=await r.text();
-
-    console.log("Cobalt HTTP:",r.status);
-    console.log("Cobalt response:",text);
-
-    if(r.ok){
-
-      const d=JSON.parse(text);
-
-      if(
-        (d.status==="tunnel"||
-         d.status==="redirect")&&
-        d.url
-      ){
-
-        if(button)
-          button.textContent="⬇ Mengambil audio...";
-
-        const f=await fetch(d.url);
-
-        if(!f.ok)
-          throw new Error("Gagal mengambil audio");
-
-        const b=await f.blob();
-
-        if(b.size)
-          return new Blob([b],{
-            type:"audio/mpeg"
-          });
-      }
-
-    }
-
-    console.warn("Cobalt gagal, mencoba Piped...");
-
-  }catch(e){
-
-    console.warn(
-      "Cobalt gagal:",
-      e.message
+    throw new Error(
+      "Video YouTube tidak valid"
     );
 
   }
 
 
-  /* ===============================
-     PIPED FALLBACK
-  =============================== */
-
-  if(button)
-    button.textContent="🔄 Mencoba Piped...";
-
-  const url=
-    await getPipedAudio(song.videoId);
-
-  const response=
-    await fetch(url);
-
-  if(!response.ok)
-    throw new Error(
-      "Piped audio gagal diambil"
+  const youtubeURL =
+    "https://www.youtube.com/watch?v=" +
+    encodeURIComponent(
+      song.videoId
     );
 
-  const blob=
-    await response.blob();
 
-  if(!blob.size)
-    throw new Error(
-      "File audio Piped kosong"
+  const response =
+    await fetch(
+      COBALT_API,
+      {
+
+        method:
+          "POST",
+
+        headers:{
+          "Accept":
+            "application/json",
+
+          "Content-Type":
+            "application/json"
+        },
+
+        body:
+          JSON.stringify({
+
+            url:
+              youtubeURL,
+
+            downloadMode:
+              "audio",
+
+            audioFormat:
+              "mp3"
+
+          })
+
+      }
     );
+
+
+  const responseText =
+    await response.text();
+
+
+  console.log(
+    "Cobalt HTTP:",
+    response.status
+  );
+
+
+  console.log(
+    "Cobalt response:",
+    responseText
+  );
+
+
+  if(!response.ok){
+
+    throw new Error(
+      "Cobalt HTTP " +
+      response.status +
+      "\n" +
+      responseText
+    );
+
+  }
+
+
+  let data;
+
+
+  try{
+
+    data =
+      JSON.parse(
+        responseText
+      );
+
+  }catch(error){
+
+    throw new Error(
+      "Response Cobalt bukan JSON:\n" +
+      responseText
+    );
+
+  }
+
+
+  console.log(
+    "Cobalt parsed:",
+    data
+  );
+
+
+  if(
+    data.status ===
+    "error"
+  ){
+
+    const cobaltCode =
+      data.error?.code ||
+      "";
+
+
+    const cobaltMessage =
+      data.error?.message ||
+      "";
+
+
+    throw new Error(
+      cobaltCode ||
+      cobaltMessage ||
+      "Cobalt gagal memproses video"
+    );
+
+  }
+
+
+  if(
+    data.status !==
+      "tunnel" &&
+    data.status !==
+      "redirect"
+  ){
+
+    throw new Error(
+      "Status Cobalt tidak dikenali: " +
+      (
+        data.status ||
+        "unknown"
+      )
+    );
+
+  }
+
+
+  if(
+    !data.url
+  ){
+
+    throw new Error(
+      "URL hasil Cobalt tidak ditemukan"
+    );
+
+  }
+
+
+  if(button){
+
+    button.textContent =
+      "⬇ Mengambil audio...";
+
+  }
+
+
+  const fileResponse =
+    await fetch(
+      data.url
+    );
+
+
+  if(!fileResponse.ok){
+
+    throw new Error(
+      "Gagal mengambil audio (" +
+      fileResponse.status +
+      ")"
+    );
+
+  }
+
+
+  const blob =
+    await fileResponse.blob();
+
+
+  if(
+    !blob ||
+    !blob.size
+  ){
+
+    throw new Error(
+      "File audio kosong"
+    );
+
+  }
+
 
   return new Blob(
     [blob],
-    {type:"audio/mpeg"}
+    {
+      type:
+        "audio/mpeg"
+    }
   );
+
 }
+
+
+/* =========================================================
+   COBALT DOWNLOAD
+   ---------------------------------------------------------
+   DOWNLOAD TETAP ADA.
+   Download akan mengambil file MP3 dan
+   menyimpannya sebagai lagu lokal di Library.
+========================================================= */
+
+async function downloadCobalt(song, button){
+
+  if(
+    !song ||
+    !song.videoId
+  ){
+
+    return null;
+
+  }
+
+
+  const originalText =
+    button
+      ? button.textContent
+      : "";
+
+
+  try{
+
+    if(button){
+
+      button.disabled =
+        true;
+
+      button.textContent =
+        "⏳ Memproses...";
+
+    }
+
+
+    const mp3Blob =
+      await getCobaltBlob(
+        song,
+        button
+      );
+
+
+    const downloadedSong = {
+
+      id:
+        "cobalt_" +
+        song.videoId,
+
+      type:
+        "local",
+
+      source:
+        "cobalt",
+
+      videoId:
+        song.videoId,
+
+      title:
+        song.title ||
+        "YouTube Music",
+
+      artist:
+        song.artist ||
+        "YouTube",
+
+      thumb:
+        song.thumb ||
+        "",
+
+      blob:
+        mp3Blob,
+
+      duration:
+        song.duration ||
+        0
+
+    };
+
+
+    await saveSong(
+      downloadedSong
+    );
+
+
+    songs =
+      await getSongs();
+
+
+    render();
+
+
+    if(button){
+
+      button.textContent =
+        "✓ Downloaded";
+
+    }
+
+
+    if($("status")){
+
+      $("status").textContent =
+        "MP3 tersimpan di Library";
+
+    }
+
+
+    return downloadedSong;
+
+
+  }catch(error){
+
+    console.error(
+      "Cobalt download error:",
+      error
+    );
+
+
+    if(button){
+
+      button.textContent =
+        "❌ Failed";
+
+    }
+
+
+    if($("status")){
+
+      $("status").textContent =
+        "Download gagal";
+
+    }
+
+
+    alert(
+      "Download gagal:\n\n" +
+      error.message
+    );
+
+
+    return null;
+
+
+  }finally{
+
+    if(button){
+
+      setTimeout(
+        () => {
+
+          if(
+            button &&
+            document.body.contains(
+              button
+            )
+          ){
+
+            button.disabled =
+              false;
+
+
+            if(
+              button.textContent ===
+                "⏳ Memproses..." ||
+              button.textContent ===
+                "⬇ Mengambil audio..." ||
+              button.textContent ===
+                "❌ Failed"
+            ){
+
+              button.textContent =
+                originalText ||
+                "⬇ Download";
+
+            }
+
+          }
+
+        },
+        2500
+      );
+
+    }
+
+  }
+
+}
+
+
 /* =========================================================
    SAVE YOUTUBE OFFLINE
    ---------------------------------------------------------
@@ -6118,4 +6426,4 @@ window.MyMusic = {
 
 /* =========================================================
    END OF MYMUSIC V2 — APP.JS PART 2
-========================================================= 
+========================================================= */
