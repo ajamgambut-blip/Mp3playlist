@@ -94,79 +94,20 @@
 <!-- ====== MULAI KODE RADIO ====== -->
 
 <!-- TOMBOL BUKA RADIO -->
-<button onclick="document.getElementById('radioBox').style.display='block'; renderRadio()" 
+<button onclick="document.getElementById('radioBox').style.display='block'" 
   style="width:100%; padding:12px; margin:12px 0; background:#1DB954; color:#000; border:none; border-radius:12px; font-weight:700; font-size:16px;">
   📻 Buka Radio Hits
 </button>
 
-<!-- KOTAK RADIO -->
+<!-- KOTAK RADIO PAKE IFRAME -->
 <div id="radioBox" style="display:none; background:#111; padding:12px; border-radius:16px; margin:12px 0;">
-  <input id="radioSearch" oninput="searchRadio()" placeholder="Cari radio..." 
-    style="width:100%; padding:10px; border-radius:8px; border:none; margin-bottom:10px; background:#222; color:#fff;">
-  <div id="radioList"></div>
+  <iframe src="https://onlineradiobox.com/id/" width="100%" height="420" frameborder="0" allow="autoplay" style="border-radius:12px;"></iframe>
   <button onclick="document.getElementById('radioBox').style.display='none'" 
     style="width:100%; margin-top:10px; padding:8px; background:#333; color:#fff; border:none; border-radius:8px;">Tutup</button>
 </div>
 
-<!-- BAR NOW PLAYING -->
-<div id="nowPlayingRadio" style="display:none; position:fixed; bottom:0; left:0; right:0; background:#1DB954; color:#000; padding:10px; align-items:center; gap:10px; z-index:999;">
-  <img id="radioLogo" src="" style="width:40px; height:40px; border-radius:6px; object-fit:cover;">
-  <b id="radioName">Radio</b>
-  <button onclick="stopRadio()" style="margin-left:auto; background:#000; color:#fff; border:none; padding:6px 12px; border-radius:8px;">Stop</button>
-</div>
+<!-- HAPUS SEMUA KODE RADIO LAMA: radioList, playRadio, radioPlayer, nowPlayingRadio -->
 
-<!-- AUDIO KHUSUS RADIO -->
-<audio id="radioPlayer" crossorigin="anonymous" preload="none"></audio>
-
-<script>
-// DATA RADIO - LINK STABIL BUAT IPHONE
-const radioList = [
-  {name:"Prambors FM", city:"Jakarta", url:"https://prambors-tunein.radioca.st/stream", logo:"https://img2.gratispng.com/20191121/sj/transparent-prambors-radio-5dd5a9a6b2b0d1.9084561815746410627309.jpg"},
-  {name:"Gen FM", city:"Jakarta", url:"https://genfm-tunein.radioca.st/stream", logo:"https://upload.wikimedia.org/wikipedia/id/9/9c/Logo_Gen_98.7_FM.png"},
-  {name:"Cirebon FM", city:"Cirebon", url:"https://radio.cirebonfm.com:8000/cirebonfm", logo:"https://i.imgur.com/8Kk3Q9p.png"}
-];
-
-// FUNGSI NAMPILIN RADIO
-function renderRadio(list = radioList){
-  const container = document.getElementById('radioList');
-  container.innerHTML = '';
-  list.forEach(radio => {
-    container.innerHTML += `<div onclick="playRadio('${radio.name}', '${radio.url}', '${radio.logo}')" style="display:flex; align-items:center; gap:12px; padding:10px; background:#222; border-radius:12px; cursor:pointer; color:#fff; margin-bottom:8px;">
-      <img src="${radio.logo}" style="width:50px; height:50px; border-radius:8px; object-fit:cover;">
-      <div><b>${radio.name}</b><br><small style="color:#aaa;">${radio.city}</small></div>
-      <span style="margin-left:auto;">▶️</span>
-    </div>`;
-  });
-}
-
-// FUNGSI PLAY RADIO
-function playRadio(name, url, logo){
-  const audio = document.getElementById('radioPlayer');
-  audio.src = url; 
-  audio.load();
-  audio.play().then(()=>{
-    document.getElementById('nowPlayingRadio').style.display = 'flex';
-    document.getElementById('radioName').innerText = "🔴 LIVE: " + name;
-    document.getElementById('radioLogo').src = logo;
-  }).catch(err => {
-    alert("Gagal play. Coba: 1. Pake Chrome 2. Ganti WiFi/Data. Error: " + err.message);
-  });
-}
-
-// FUNGSI STOP RADIO
-function stopRadio(){
-  const audio = document.getElementById('radioPlayer');
-  audio.pause(); audio.src='';
-  document.getElementById('nowPlayingRadio').style.display = 'none';
-}
-
-// FUNGSI CARI RADIO
-function searchRadio(){
-  const q = document.getElementById('radioSearch').value.toLowerCase();
-  renderRadio(radioList.filter(r => r.name.toLowerCase().includes(q) || r.city.toLowerCase().includes(q)));
-}
-</script>
-<!-- ====== SELESAI KODE RADIO ====== -->
   
 </body>
 </html>
