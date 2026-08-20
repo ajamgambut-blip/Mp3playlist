@@ -6189,3 +6189,103 @@ setTimeout(()=>{
   b.onclick=window.testPiped;
   document.body.appendChild(b);
 },1000);
+
+// ================== RADIO ONLINE ==================
+const radioPlayer = document.getElementById('radioPlayer');
+
+const radioList = [
+  // RADIO CIREBON
+  { name: "Cirebon FM", url: "https://stream.zeno.fm/0r0a792kwz8uv", logo: "https://i.imgur.com/8Km9tLL.png", city: "Cirebon" },
+  
+  // RADIO HITS JAKARTA
+  { name: "Prambors FM", url: "https://stream.zeno.fm/8q5r8q5r8q5uv", logo: "https://upload.wikimedia.org/wikipedia/id/3/3e/Prambors_FM_logo.png", city: "Jakarta" },
+  { name: "Gen FM", url: "https://stream.zeno.fm/9q9r9q9r9q9uv", logo: "https://upload.wikimedia.org/wikipedia/id/a1/Gen98.7FM.png", city: "Jakarta" },
+  { name: "Delta FM", url: "https://stream.zeno.fm/a0a1a0a1a0a1uv", logo: "https://upload.wikimedia.org/wikipedia/id/5/5e/Delta_FM_logo.png", city: "Jakarta" },
+  { name: "Hard Rock FM", url: "https://stream.zeno.fm/b1b2b1b2b1b2uv", logo: "https://upload.wikimedia.org/wikipedia/id/4/4c/Hard_Rock_FM_logo.png", city: "Jakarta" },
+  { name: "Trax FM", url: "https://stream.zeno.fm/c2c3c2c3c2c3uv", logo: "https://upload.wikimedia.org/wikipedia/id/7/7e/Trax_FM_logo.png", city: "Jakarta" },
+  
+  // RADIO BANDUNG
+  { name: "Ardan FM", url: "https://stream.zeno.fm/d3d4d3d4d3d4uv", logo: "https://i.imgur.com/1a2b3c4.png", city: "Bandung" },
+  { name: "Cosmopolitan FM", url: "https://stream.zeno.fm/e4e5e4e5e4e5uv", logo: "https://i.imgur.com/2b3c4d5.png", city: "Bandung" },
+  
+  // RADIO NASIONAL
+  { name: "RRI Pro 2", url: "https://stream.rri.co.id/pro2jakarta", logo: "https://upload.wikimedia.org/wikipedia/id/5/5c/RRI_Pro2_logo.png", city: "Nasional" },
+  { name: "RRI Pro 3", url: "https://stream.rri.co.id/pro3", logo: "https://upload.wikimedia.org/wikipedia/id/6/6d/RRI_Pro3_logo.png", city: "Nasional" },
+  { name: "Elshinta", url: "https://stream.zeno.fm/f5f6f5f6f5f6uv", logo: "https://upload.wikimedia.org/wikipedia/id/9/9e/Elshinta_logo.png", city: "Jakarta" },
+  { name: "Radio Sonora", url: "https://stream.zeno.fm/g6g7g6g7g6g7uv", logo: "https://upload.wikimedia.org/wikipedia/id/8/8f/Sonora_FM_logo.png", city: "Jakarta" }
+];
+
+function renderRadio(list = radioList){
+  const container = document.getElementById('radioList');
+  if(!container) return;
+  container.innerHTML = '';
+  list.forEach(radio => {
+    container.innerHTML += `
+      <div onclick="playRadio('${radio.name}', '${radio.url}', '${radio.logo}')" style="display:flex; align-items:center; gap:12px; padding:10px; margin-bottom:8px; background:#f5f5f5; border-radius:12px; cursor:pointer;">
+        <img src="${radio.logo}" style="width:50px; height:50px; border-radius:8px; object-fit:cover;">
+        <div>
+          <b>${radio.name}</b><br>
+          <small style="color:#666;">${radio.city}</small>
+        </div>
+        <span style="margin-left:auto; font-size:20px;">▶️</span>
+      </div>
+    `;
+  });
+}
+
+function playRadio(nama, url, logo){
+  stopRadio(); // matiin yg lama dulu
+  radioPlayer.src = url;
+  radioPlayer.play().catch(e => showToast("Gagal play: Cek internet"));
+  
+  document.getElementById('nowPlayingRadio').style.display = 'block';
+  document.getElementById('radioName').innerText = nama;
+  showToast(`Live: ${nama}`);
+
+  // MediaSession biar ada di lockscreen + kontrol
+  if('mediaSession' in navigator){
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: nama,
+      artist: 'Radio Online',
+      artwork: [{src: logo, sizes: '512x512', type: 'image/png'}]
+    });
+    navigator.mediaSession.setActionHandler('stop', () => stopRadio());
+  }
+
+  // Kirim ke SW buat notifikasi
+  if(navigator.serviceWorker.controller){
+    navigator.serviceWorker.controller.postMessage({
+      type: 'RADIO_PLAY', name: nama, logo: logo
+    });
+  }
+}
+
+function stopRadio(){
+  radioPlayer.pause();
+  radioPlayer.src = '';
+  document.getElementById('nowPlayingRadio').style.display = 'none';
+  
+  if(navigator.serviceWorker.controller){
+    navigator.serviceWorker.controller.postMessage({type: 'RADIO_STOP'});
+  }
+}
+
+function searchRadio(){
+  const q = document.getElementById('radioSearch').value.toLowerCase();
+  const filtered = radioList.filter(r => 
+    r.name.toLowerCase().includes(q) || 
+    r.city.toLowerCase().includes(q)
+  );
+  renderRadio(filtered);
+}
+
+// Dengerin perintah dari SW
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.addEventListener('message', event => {
+    if(event.data.type === 'STOP_RADIO') stopRadio();
+  });
+}
+
+// Panggil pertama kali biar langsung muncul
+renderRadio();
+// ================== AKHIR KODE RADIO ==================
