@@ -23,18 +23,6 @@
    - Playlist TIDAK menyimpan file audio
    - Save Offline menyimpan audio ke IndexedDB
 ========================================================= */
-function showPage(id){
-  // sembunyikan semua page
-  document.querySelectorAll('section').forEach(sec => sec.style.display = 'none');
-  // tampilkan yg diklik
-  document.getElementById(id).style.display = 'block';
-  
-  // kalau buka radio, langsung render
-  if(id === 'radioPage') renderRadio();
-}
-
-// Biar pas buka app langsung ke halaman utama musik
-showPage('mainPage'); // ganti 'mainPage' sesuai id section musik kamu
 
 /* =========================================================
    YOUTUBE API
@@ -6132,171 +6120,37 @@ window.MyMusic = {
    END OF MYMUSIC V2 — APP.JS PART 2
 ========================================================= 
 
-*/
-const PIPED=[
-"https://pipedapi.wireway.ch",
-"https://api.piped.private.coffee"
-];
-
-async function getPipedAudio(id){
-  for(const api of PIPED){
-    try{
-      const c=new AbortController();
-      const t=setTimeout(()=>c.abort(),8000);
-
-      const r=await fetch(`${api}/streams/${id}`,{
-        signal:c.signal
-      });
-
-      clearTimeout(t);
-
-      if(!r.ok)continue;
-
-      const d=await r.json();
-
-      const s=(d.audioStreams||[])
-        .filter(x=>x.url&&!x.videoOnly)
-        .sort((a,b)=>(b.bitrate||0)-(a.bitrate||0))[0];
-
-      if(s){
-        console.log("Piped OK:",api);
-        return s.url;
-      }
-    }catch(e){
-      console.warn("Piped gagal:",api);
-    }
-  }
-
-  throw new Error("Semua Piped gagal");
-}
-
-window.testPiped=async()=>{
-  const id=prompt("Masukkan URL YouTube:");
-  if(!id)return;
-
-  const m=id.match(
-    /(?:v=|youtu\.be\/|shorts\/)([^&?/]+)/
-  );
-
-  if(!m){
-    alert("URL YouTube tidak valid");
-    return;
-  }
-
-  try{
-    const url=await getPipedAudio(m[1]);
-    alert("PIPED BERHASIL!\n\nAudio berhasil ditemukan.");
-    console.log(url);
-  }catch(e){
-    alert("PIPED GAGAL:\n\n"+e.message);
-  }
-};
-
-setTimeout(()=>{
-  const b=document.createElement("button");
-  b.textContent="TEST PIPED";
-  b.style.cssText=
-    "position:fixed;bottom:20px;right:20px;z-index:99999;padding:12px 18px;border-radius:20px;background:#fff;color:#000;font-weight:bold";
-  b.onclick=window.testPiped;
-  document.body.appendChild(b);
-},1000);
-
-// ================== RADIO ONLINE ==================
-const radioPlayer = document.getElementById('radioPlayer');
-
 const radioList = [
-  // RADIO CIREBON
-  { name: "Cirebon FM", url: "https://stream.zeno.fm/0r0a792kwz8uv", logo: "https://i.imgur.com/8Km9tLL.png", city: "Cirebon" },
-  
-  // RADIO HITS JAKARTA
-  { name: "Prambors FM", url: "https://stream.zeno.fm/8q5r8q5r8q5uv", logo: "https://upload.wikimedia.org/wikipedia/id/3/3e/Prambors_FM_logo.png", city: "Jakarta" },
-  { name: "Gen FM", url: "https://stream.zeno.fm/9q9r9q9r9q9uv", logo: "https://upload.wikimedia.org/wikipedia/id/a1/Gen98.7FM.png", city: "Jakarta" },
-  { name: "Delta FM", url: "https://stream.zeno.fm/a0a1a0a1a0a1uv", logo: "https://upload.wikimedia.org/wikipedia/id/5/5e/Delta_FM_logo.png", city: "Jakarta" },
-  { name: "Hard Rock FM", url: "https://stream.zeno.fm/b1b2b1b2b1b2uv", logo: "https://upload.wikimedia.org/wikipedia/id/4/4c/Hard_Rock_FM_logo.png", city: "Jakarta" },
-  { name: "Trax FM", url: "https://stream.zeno.fm/c2c3c2c3c2c3uv", logo: "https://upload.wikimedia.org/wikipedia/id/7/7e/Trax_FM_logo.png", city: "Jakarta" },
-  
-  // RADIO BANDUNG
-  { name: "Ardan FM", url: "https://stream.zeno.fm/d3d4d3d4d3d4uv", logo: "https://i.imgur.com/1a2b3c4.png", city: "Bandung" },
-  { name: "Cosmopolitan FM", url: "https://stream.zeno.fm/e4e5e4e5e4e5uv", logo: "https://i.imgur.com/2b3c4d5.png", city: "Bandung" },
-  
-  // RADIO NASIONAL
-  { name: "RRI Pro 2", url: "https://stream.rri.co.id/pro2jakarta", logo: "https://upload.wikimedia.org/wikipedia/id/5/5c/RRI_Pro2_logo.png", city: "Nasional" },
-  { name: "RRI Pro 3", url: "https://stream.rri.co.id/pro3", logo: "https://upload.wikimedia.org/wikipedia/id/6/6d/RRI_Pro3_logo.png", city: "Nasional" },
-  { name: "Elshinta", url: "https://stream.zeno.fm/f5f6f5f6f5f6uv", logo: "https://upload.wikimedia.org/wikipedia/id/9/9e/Elshinta_logo.png", city: "Jakarta" },
-  { name: "Radio Sonora", url: "https://stream.zeno.fm/g6g7g6g7g6g7uv", logo: "https://upload.wikimedia.org/wikipedia/id/8/8f/Sonora_FM_logo.png", city: "Jakarta" }
+  {name:"Prambors FM", city:"Jakarta", url:"https://stream.zeno.fm/0r0a792kwz8uv", logo:"https://img2.gratispng.com/20191121/sj/transparent-prambors-radio-5dd5a9a6b2b0d1.9084561815746410627309.jpg"},
+  {name:"Gen FM", city:"Jakarta", url:"https://stream.zeno.fm/u4b3nq6e6y0uv", logo:"https://upload.wikimedia.org/wikipedia/id/9/9c/Logo_Gen_98.7_FM.png"},
+  {name:"Cirebon FM", city:"Cirebon", url:"https://stream.zeno.fm/8q3x3v8k6y0uv", logo:"https://play-lh.googleusercontent.com/abc123"}
 ];
 
 function renderRadio(list = radioList){
   const container = document.getElementById('radioList');
-  if(!container) return;
   container.innerHTML = '';
   list.forEach(radio => {
-    container.innerHTML += `
-      <div onclick="playRadio('${radio.name}', '${radio.url}', '${radio.logo}')" style="display:flex; align-items:center; gap:12px; padding:10px; margin-bottom:8px; background:#f5f5f5; border-radius:12px; cursor:pointer;">
-        <img src="${radio.logo}" style="width:50px; height:50px; border-radius:8px; object-fit:cover;">
-        <div>
-          <b>${radio.name}</b><br>
-          <small style="color:#666;">${radio.city}</small>
-        </div>
-        <span style="margin-left:auto; font-size:20px;">▶️</span>
-      </div>
-    `;
+    container.innerHTML += `<div onclick="playRadio('${radio.name}', '${radio.url}', '${radio.logo}')" style="display:flex; align-items:center; gap:12px; padding:10px; background:#222; border-radius:12px; cursor:pointer; color:#fff; margin-bottom:8px;">
+      <img src="${radio.logo}" style="width:50px; height:50px; border-radius:8px;">
+      <div><b>${radio.name}</b><br><small style="color:#aaa;">${radio.city}</small></div>
+      <span style="margin-left:auto;">▶️</span>
+    </div>`;
   });
 }
 
-function playRadio(nama, url, logo){
-  stopRadio(); // matiin yg lama dulu
-  radioPlayer.src = url;
-  radioPlayer.play().catch(e => showToast("Gagal play: Cek internet"));
-  
+function playRadio(name, url, logo){
+  const audio = document.getElementById('radioPlayer');
+  audio.src = url; audio.play();
   document.getElementById('nowPlayingRadio').style.display = 'block';
-  document.getElementById('radioName').innerText = nama;
-  showToast(`Live: ${nama}`);
-
-  // MediaSession biar ada di lockscreen + kontrol
-  if('mediaSession' in navigator){
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: nama,
-      artist: 'Radio Online',
-      artwork: [{src: logo, sizes: '512x512', type: 'image/png'}]
-    });
-    navigator.mediaSession.setActionHandler('stop', () => stopRadio());
-  }
-
-  // Kirim ke SW buat notifikasi
-  if(navigator.serviceWorker.controller){
-    navigator.serviceWorker.controller.postMessage({
-      type: 'RADIO_PLAY', name: nama, logo: logo
-    });
-  }
+  document.getElementById('radioName').innerText = name;
 }
 
 function stopRadio(){
-  radioPlayer.pause();
-  radioPlayer.src = '';
+  document.getElementById('radioPlayer').pause();
   document.getElementById('nowPlayingRadio').style.display = 'none';
-  
-  if(navigator.serviceWorker.controller){
-    navigator.serviceWorker.controller.postMessage({type: 'RADIO_STOP'});
-  }
 }
 
 function searchRadio(){
   const q = document.getElementById('radioSearch').value.toLowerCase();
-  const filtered = radioList.filter(r => 
-    r.name.toLowerCase().includes(q) || 
-    r.city.toLowerCase().includes(q)
-  );
-  renderRadio(filtered);
+  renderRadio(radioList.filter(r => r.name.toLowerCase().includes(q) || r.city.toLowerCase().includes(q)));
 }
-
-// Dengerin perintah dari SW
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.addEventListener('message', event => {
-    if(event.data.type === 'STOP_RADIO') stopRadio();
-  });
-}
-
-// Panggil pertama kali biar langsung muncul
-renderRadio();
-// ================== AKHIR KODE RADIO ==================
