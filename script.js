@@ -23,7 +23,18 @@
    - Playlist TIDAK menyimpan file audio
    - Save Offline menyimpan audio ke IndexedDB
 ========================================================= */
+function showPage(id){
+  // sembunyikan semua page
+  document.querySelectorAll('section').forEach(sec => sec.style.display = 'none');
+  // tampilkan yg diklik
+  document.getElementById(id).style.display = 'block';
+  
+  // kalau buka radio, langsung render
+  if(id === 'radioPage') renderRadio();
+}
 
+// Biar pas buka app langsung ke halaman utama musik
+showPage('mainPage'); // ganti 'mainPage' sesuai id section musik kamu
 
 /* =========================================================
    YOUTUBE API
